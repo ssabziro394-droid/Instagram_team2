@@ -4,7 +4,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({ 
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || "https://65f000000000000000000000.mockapi.io/api/v1/",
+    baseUrl: process.env.NEXT_PUBLIC_API_URL ,
     prepareHeaders: (headers) => {
       // Logic to add JWT token if exists
       // const token = localStorage.getItem('token');
