@@ -23,7 +23,6 @@ export default function LoginPage() {
   const dispatch = useDispatch();
   const [login, { isLoading }] = useLoginMutation();
   const [serverError, setServerError] = useState<string | null>(null);
-  console.log(useLoginMutation());
 
   const {
     register,
