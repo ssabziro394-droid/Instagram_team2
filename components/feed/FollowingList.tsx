@@ -5,7 +5,11 @@ import { useGetFollowingPostsQuery } from "@/store/api/feedApi";
 import PostCard from "./PostCard";
 import { RefreshCw, Users } from "lucide-react";
 
-export default function FollowingList() {
+interface FollowingListProps {
+  onViewDetails?: (postId: number) => void;
+}
+
+export default function FollowingList({ onViewDetails }: FollowingListProps) {
   const [page, setPage] = useState(1);
   const { data, isLoading, isFetching, error, refetch } = useGetFollowingPostsQuery({
     pageNumber: page,
@@ -93,7 +97,7 @@ export default function FollowingList() {
       {/* Posts List */}
       <div>
         {posts.map((post) => (
-          <PostCard key={post.postId} post={post} />
+          <PostCard key={post.postId} post={post} onViewDetails={onViewDetails} />
         ))}
       </div>
 

@@ -6,7 +6,11 @@ import { useGetFeedQuery } from "@/store/api/feedApi";
 import PostCard from "./PostCard";
 import { RefreshCw, PlusCircle } from "lucide-react";
 
-export default function FeedList() {
+interface FeedListProps {
+  onViewDetails?: (postId: number) => void;
+}
+
+export default function FeedList({ onViewDetails }: FeedListProps) {
   const [page, setPage] = useState(1);
   const { data, isLoading, isFetching, error, refetch } = useGetFeedQuery({
     pageNumber: page,
@@ -95,7 +99,7 @@ export default function FeedList() {
       {/* Posts List */}
       <div>
         {posts.map((post) => (
-          <PostCard key={post.postId} post={post} />
+          <PostCard key={post.postId} post={post} onViewDetails={onViewDetails} />
         ))}
       </div>
 

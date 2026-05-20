@@ -17,9 +17,10 @@ import { cn, formatRelativeTime } from "@/lib/utils";
 
 interface PostCardProps {
   post: Post;
+  onViewDetails?: (postId: number) => void;
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, onViewDetails }: PostCardProps) {
   const [likePost] = useLikePostMutation();
   const [addComment] = useAddCommentMutation();
   
@@ -117,6 +118,7 @@ export default function PostCard({ post }: PostCardProps) {
       <div 
         className="relative w-full aspect-square bg-zinc-900 overflow-hidden cursor-pointer"
         onDoubleClick={handleLike}
+        onClick={() => onViewDetails?.(post.postId)}
       >
         <img
           src={getFileUrl(post.images?.[0], "post")}
@@ -158,7 +160,10 @@ export default function PostCard({ post }: PostCardProps) {
             >
               <Heart className={cn("h-6 w-6", localLike && "fill-red-500")} />
             </motion.button>
-            <button className="text-zinc-200 hover:text-zinc-400 transition-colors p-1 -m-1">
+            <button 
+              onClick={() => onViewDetails?.(post.postId)}
+              className="text-zinc-200 hover:text-zinc-400 transition-colors p-1 -m-1"
+            >
               <MessageCircle className="h-6 w-6" />
             </button>
             <button className="text-zinc-200 hover:text-zinc-400 transition-colors p-1 -m-1">
@@ -190,7 +195,7 @@ export default function PostCard({ post }: PostCardProps) {
           <div className="mt-2.5">
             {post.comments.length > 3 && (
               <button 
-                onClick={() => setShowAllComments(!showAllComments)}
+                onClick={() => onViewDetails ? onViewDetails(post.postId) : setShowAllComments(!showAllComments)}
                 className="text-zinc-500 text-xs font-medium mb-2 hover:text-zinc-400 transition-colors"
               >
                 {showAllComments 
