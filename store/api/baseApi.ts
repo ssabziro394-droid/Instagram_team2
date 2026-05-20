@@ -8,7 +8,7 @@ export const baseApi = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl:
       // here: силкаи запрос кати тугри намегирад, барои хавай ин силкара мондм
-      process.env.NEXT_PUBLIC_API_URL || "https://instagram-api.softclub.tj/",
+      process.env.NEXT_PUBLIC_API_URL,
     prepareHeaders: (headers, { getState }) => {
       //here: @TODO(Team Lead): Added token injection logic here. Please review and approve.
       const token = (getState() as RootState).auth?.token;

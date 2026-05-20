@@ -17,9 +17,7 @@ export default function MainLayout({
         </div>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">{children}</main>
 
         {/* Bottom Navigation - Visible on Mobile */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 border-t border-zinc-800 bg-black z-50">
