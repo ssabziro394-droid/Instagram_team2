@@ -46,7 +46,7 @@ export default function Sidebar() {
     { label: "Messages", href: "/messages", icon: MessageSquare },
     { label: "Notifications", href: "#", icon: Heart },
     { label: "Create", href: "/?create=true", icon: PlusSquare },
-    { label: "Profile", href: "/username", icon: User }, // Username will be dynamic later
+    { label: "Profile", href: "/username", icon: User },
   ];
 
   return (

@@ -13,9 +13,8 @@ export default function AuthLayout({
           {children}
         </div>
         
-        {/* Simple footer frame for switching auth type */}
         <div className="bg-black border border-zinc-800 rounded-lg p-6 text-center text-sm text-zinc-400">
-          Сделано для демонстрации клона Instagram.
+          Created for demonstration of Instagram clone.
         </div>
       </div>
     </div>
