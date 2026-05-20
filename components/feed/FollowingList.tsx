@@ -11,6 +11,8 @@ interface FollowingListProps {
 
 export default function FollowingList({ onViewDetails }: FollowingListProps) {
   const [page, setPage] = useState(1);
+  const [isRetrying, setIsRetrying] = useState(false);
+
   const { data, isLoading, isFetching, error, refetch } = useGetFollowingPostsQuery({
     pageNumber: page,
     pageSize: 10,
@@ -31,9 +33,21 @@ export default function FollowingList({ onViewDetails }: FollowingListProps) {
     }
   };
 
-  if (isLoading) {
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    try {
+      await refetch().unwrap();
+    } catch (err) {
+      console.error("Following feed refetch failed:", err);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  // 1. Loading state (either initial load, background fetching, or manual retrying)
+  if (isLoading || isFetching || isRetrying) {
     return (
-      <div className="flex flex-col gap-6 w-full max-w-lg mx-auto">
+      <div className="flex flex-col gap-6 w-full max-w-lg mx-auto animate-fade-in">
         {[1, 2].map((i) => (
           <div key={i} className="bg-zinc-950 border border-zinc-900 rounded-xl overflow-hidden animate-pulse">
             {/* Header Skeleton */}
@@ -62,36 +76,41 @@ export default function FollowingList({ onViewDetails }: FollowingListProps) {
     );
   }
 
+  // 2. Error state (user-friendly message + official Instagram blue accent retry button)
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 border border-zinc-800 rounded-2xl bg-zinc-950/50 backdrop-blur text-center max-w-lg mx-auto my-12">
-        <span className="text-red-500 font-medium mb-2">Failed to load following posts</span>
-        <p className="text-zinc-500 text-xs max-w-xs mb-6">
-          There was an error communicating with the Instagram servers. Please try again.
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center max-w-lg mx-auto my-6 animate-fade-in">
+        <div className="w-16 h-16 rounded-full bg-zinc-950 border border-zinc-900 flex items-center justify-center mb-6 shadow-md">
+          <RefreshCw className="h-7 w-7 text-zinc-400 animate-pulse" />
+        </div>
+        <h3 className="font-semibold text-lg text-white mb-2 tracking-tight">Couldn't load feed</h3>
+        <p className="text-zinc-500 text-xs max-w-xs mb-8 leading-relaxed">
+          We're having trouble loading posts from accounts you follow. Please check your connection and try again.
         </p>
         <button
-          onClick={() => refetch()}
-          className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 hover:border-zinc-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+          onClick={handleRetry}
+          className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#0095f6] hover:bg-[#1877f2] active:scale-[0.98] text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-lg hover:shadow-xl duration-200"
         >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Retry
+          Try again
         </button>
       </div>
     );
   }
 
+  // 3. Empty state
   if (posts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center text-center p-12 border border-dashed border-zinc-900 rounded-2xl bg-zinc-950/20 max-w-lg mx-auto my-12">
+      <div className="flex flex-col items-center justify-center text-center p-12 border border-dashed border-zinc-900 rounded-2xl bg-zinc-950/20 max-w-lg mx-auto my-12 animate-fade-in">
         <Users className="h-10 w-10 text-zinc-600 mb-4" />
         <h3 className="font-semibold text-zinc-350 mb-1">No posts from accounts you follow</h3>
-        <p className="text-zinc-500 text-xs max-w-xs mb-6">
+        <p className="text-zinc-500 text-xs max-w-xs mb-6 leading-relaxed">
           When you follow accounts on Instagram, their posts will appear here. Find people to follow under suggestions!
         </p>
       </div>
     );
   }
 
+  // 4. Success state
   return (
     <div className="flex flex-col w-full max-w-lg mx-auto pb-10">
       {/* Posts List */}
@@ -112,7 +131,7 @@ export default function FollowingList({ onViewDetails }: FollowingListProps) {
             Previous
           </button>
           
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-zinc-550">
             Page <span className="text-zinc-300 font-semibold">{page}</span> of {totalPages}
           </span>
           
