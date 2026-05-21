@@ -11,12 +11,15 @@ import {
   SendHorizontal,
   X,
   StopCircle,
+  Trash2,
 } from "lucide-react";
+import Link from "next/link";
 import {
   useGetChatByIdQuery,
   useSendMessageMutation,
   useGetChatsQuery,
   useGetMyProfileQuery,
+  useDeleteMessageMutation,
 } from "@/store/api/chatApi";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -240,7 +243,7 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
 
   const { data: chatData, isLoading } = useGetChatByIdQuery(
     { chatId: chatId! },
-    { skip: !chatId },
+    { skip: !chatId, pollingInterval: 5000 },
   );
 
   const { data: chatsResponse } = useGetChatsQuery(undefined, {
@@ -250,6 +253,7 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
   const currentChat = chats.find((c: any) => c.chatId === chatId);
 
   const [sendMessage, { isLoading: isSending }] = useSendMessageMutation();
+  const [deleteMessage] = useDeleteMessageMutation();
 
   const checkIsOwnMessage = (msg: any) => {
     if (!msg || !msg.userId || !currentUserId) return false;
@@ -375,6 +379,17 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
     }
   };
 
+  const handleDeleteMessage = async (messageId: number) => {
+    if (!chatId) return;
+    if (confirm("Are you sure you want to delete this message?")) {
+      try {
+        await deleteMessage({ messageId, chatId }).unwrap();
+      } catch (error) {
+        console.error("Failed to delete message", error);
+      }
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setValue("file", e.target.files[0], { shouldValidate: true });
@@ -449,7 +464,10 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
     <div className="flex-1 flex flex-col bg-zinc-950 h-full overflow-hidden">
       {/* Header */}
       <div className="h-[76px] flex items-center justify-between px-6 border-b border-zinc-800 shrink-0">
-        <div className="flex items-center gap-3 cursor-pointer">
+        <Link
+          href={`/${partnerUsername}`}
+          className="flex items-center gap-3 hover:opacity-90 transition-opacity"
+        >
           {renderAvatar(partnerImage, "w-11 h-11")}
           <div className="flex flex-col">
             <span className="text-zinc-50 font-semibold text-base">
@@ -457,7 +475,7 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
             </span>
             <span className="text-zinc-400 text-xs">Active now</span>
           </div>
-        </div>
+        </Link>
         <div className="flex items-center gap-6 text-zinc-50">
           <button className="hover:text-zinc-300 transition-colors">
             <Phone className="w-6 h-6" />
@@ -474,14 +492,22 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
       <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-3">
         {messages.length === 0 && !isLoading ? (
           <div className="flex flex-col items-center justify-center h-full text-zinc-500">
-            {renderAvatar(partnerImage, "w-24 h-24 mb-4")}
+            <Link
+              href={`/${partnerUsername}`}
+              className="hover:opacity-90 transition-opacity"
+            >
+              {renderAvatar(partnerImage, "w-24 h-24 mb-4")}
+            </Link>
             <p className="text-zinc-50 font-semibold text-lg">
               {partnerUsername}
             </p>
             <p className="text-sm mb-4">Instagram</p>
-            <button className="bg-zinc-800 hover:bg-zinc-700 text-zinc-50 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors">
+            <Link
+              href={`/${partnerUsername}`}
+              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-50 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors"
+            >
               View profile
-            </button>
+            </Link>
           </div>
         ) : (
           <>
@@ -498,16 +524,22 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
                 <div
                   key={msg.messageId}
                   className={clsx(
-                    "flex max-w-[75%] gap-2 items-end",
-                    isOwn ? "self-end" : "self-start",
+                    "flex max-w-[75%] gap-2 items-end group relative",
+                    isOwn ? "self-end flex-row-reverse" : "self-start flex-row",
                   )}
                 >
                   {/* Sender Avatar for incoming */}
-                  {!isOwn &&
-                    renderAvatar(
-                      msg?.userImage || partnerImage,
-                      "w-8 h-8 rounded-full mb-1",
-                    )}
+                  {!isOwn && (
+                    <Link
+                      href={`/${msg.userName || partnerUsername}`}
+                      className="hover:opacity-90 transition-opacity shrink-0"
+                    >
+                      {renderAvatar(
+                        msg?.userImage || partnerImage,
+                        "w-8 h-8 rounded-full mb-1",
+                      )}
+                    </Link>
+                  )}
 
                   <div
                     className={clsx(
@@ -549,6 +581,15 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
                         : ""}
                     </sub>
                   </div>
+
+                  {/* Minimalistic Delete Button */}
+                  <button
+                    onClick={() => handleDeleteMessage(msg.messageId)}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-zinc-800/60 rounded-lg text-zinc-500 hover:text-red-500 transition-all self-center shrink-0"
+                    title="Delete message"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               );
             })}

@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { SquarePen, ChevronDown } from "lucide-react";
+import { SquarePen, ChevronDown, Trash2 } from "lucide-react";
+import Link from "next/link";
 import {
   useGetChatsQuery,
   useGetMyProfileQuery,
   useGetChatByIdQuery,
+  useDeleteChatMutation,
 } from "@/store/api/chatApi";
 import { NewMessageModal } from "./NewMessageModal";
 import clsx from "clsx";
@@ -15,7 +17,7 @@ import { jwtDecode } from "jwt-decode";
 
 interface ChatSidebarProps {
   activeChatId: number | null;
-  onSelectChat: (chatId: number) => void;
+  onSelectChat: (chatId: number | null) => void;
 }
 
 const getUserIdFromToken = (token: string | null) => {
@@ -80,9 +82,21 @@ interface SidebarChatItemProps {
   chat: any;
   currentUserId: string | null;
   activeChatId: number | null;
-  onSelectChat: (chatId: number) => void;
+  onSelectChat: (chatId: number | null) => void;
   activeTab: "Messages" | "Requests";
-}
+}const SidebarSkeleton = () => (
+  <div className="space-y-4 px-6 pt-2">
+    {[...Array(5)].map((_, i) => (
+      <div key={i} className="flex items-center gap-3 py-2 animate-pulse">
+        <div className="w-14 h-14 bg-zinc-800/80 rounded-full shrink-0" />
+        <div className="flex-1 space-y-2.5 overflow-hidden">
+          <div className="h-3 bg-zinc-800 rounded-full w-2/5" />
+          <div className="h-2.5 bg-zinc-800/60 rounded-full w-3/5" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 function SidebarChatItem({
   chat,
@@ -95,6 +109,7 @@ function SidebarChatItem({
 
   // Query each chat's messages to determine if the user has talked yet
   const { data: chatDetails } = useGetChatByIdQuery({ chatId });
+  const [deleteChat, { isLoading: isDeleting }] = useDeleteChatMutation();
   const messages = chatDetails?.data || [];
 
   // Determine if the chat has no messages yet (initial-chat where they haven't written to each other)
@@ -105,19 +120,11 @@ function SidebarChatItem({
   if (activeTab === "Messages" && isInitial) return null;
 
   // Determine partner details
-
-  // here current user id
   const isCurrentUserSender = currentUserId
-    ? String(chat.sendUserId).toLowerCase() ===
-      String(currentUserId).toLowerCase()
+    ? String(chat.sendUserId).toLowerCase() === String(currentUserId).toLowerCase()
     : false;
-  const partnerName = isCurrentUserSender
-    ? chat.receiveUserName
-    : chat.sendUserName;
-
-  const partnerImage = isCurrentUserSender
-    ? chat.receiveUserImage
-    : chat.sendUserImage;
+  const partnerName = isCurrentUserSender ? chat.receiveUserName : chat.sendUserName;
+  const partnerImage = isCurrentUserSender ? chat.receiveUserImage : chat.sendUserImage;
 
   // Determine the last message content (newest message is at index 0 from API)
   const lastMsg = messages[0];
@@ -141,18 +148,36 @@ function SidebarChatItem({
     }
   }
 
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm(`Are you sure you want to delete this chat with ${partnerName || "Unknown User"}?`)) {
+      try {
+        await deleteChat({ chatId }).unwrap();
+        if (activeChatId === chatId) {
+          onSelectChat(null);
+        }
+      } catch (err) {
+        console.error("Failed to delete chat:", err);
+      }
+    }
+  };
+
   return (
     <div
       onClick={() => onSelectChat(chatId)}
       className={clsx(
-        "flex items-center gap-3 px-6 py-2.5 cursor-pointer transition-colors",
+        "flex items-center gap-3 px-6 py-2.5 cursor-pointer transition-colors group relative",
         activeChatId === chatId ? "bg-zinc-800/50" : "hover:bg-zinc-800/30",
       )}
     >
-      <div className="relative">
+      <Link
+        href={`/${partnerName || ""}`}
+        onClick={(e) => e.stopPropagation()}
+        className="relative block hover:opacity-90 transition-opacity"
+      >
         {renderAvatar(partnerImage, "w-14 h-14")}
         <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-zinc-950 rounded-full" />
-      </div>
+      </Link>
       <div className="flex flex-col flex-1 overflow-hidden">
         <span className="text-zinc-50 text-sm font-medium">
           {partnerName || "Unknown User"}
@@ -161,6 +186,14 @@ function SidebarChatItem({
           {lastMsgText}
         </span>
       </div>
+      <button
+        onClick={handleDelete}
+        disabled={isDeleting}
+        className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-red-500 transition-all shrink-0 disabled:opacity-50"
+        title="Delete Chat"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
     </div>
   );
 }
@@ -231,9 +264,7 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
       {/* Chat List */}
       <div className="flex-1 overflow-y-auto pt-2">
         {isLoading ? (
-          <div className="p-4 text-zinc-500 text-sm text-center">
-            Loading messages...
-          </div>
+          <SidebarSkeleton />
         ) : chats.length === 0 ? (
           <div className="p-4 text-zinc-500 text-sm text-center">
             No messages yet.
