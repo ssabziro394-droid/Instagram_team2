@@ -12,6 +12,8 @@ import {
   X,
   StopCircle,
   Trash2,
+  ChevronLeft,
+  ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -32,6 +34,7 @@ import { jwtDecode } from "jwt-decode";
 interface ChatAreaProps {
   chatId: number | null;
   onNewMessageTrigger: () => void;
+  onBack?: () => void;
 }
 
 const chatSchema = z.object({
@@ -118,19 +121,24 @@ const renderAvatar = (
   );
 };
 
-const AudioPlayer = ({ src }: { src: string }) => {
+const AudioPlayer = ({ src, isOwn }: { src: string; isOwn: boolean }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
+    if (audioRef.current.paused) {
+      const allAudios = document.querySelectorAll("audio");
+      allAudios.forEach((audio) => {
+        if (audio !== audioRef.current) {
+          audio.pause();
+        }
+      });
       audioRef.current.play();
+    } else {
+      audioRef.current.pause();
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleTimeUpdate = () => {
@@ -157,87 +165,129 @@ const AudioPlayer = ({ src }: { src: string }) => {
   };
 
   return (
-    <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-full px-4 py-2 min-w-[200px] max-w-full shadow-inner select-none">
+    <div className="flex items-center gap-3 py-1 min-w-[220px] max-w-full select-none">
       <audio
         ref={audioRef}
         src={src}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
         className="hidden"
       />
       <button
         type="button"
         onClick={togglePlay}
-        className="w-8 h-8 rounded-full bg-[#3797F0] hover:bg-[#1877f2] flex items-center justify-center text-white transition-colors shrink-0"
+        className={clsx(
+          "w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 shadow-sm cursor-pointer",
+          isOwn
+            ? "bg-white text-[#3797F0] hover:bg-zinc-100"
+            : "bg-[#3797F0] text-white hover:bg-[#1877f2]",
+        )}
       >
         {isPlaying ? (
-          <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-            <rect x="4" y="4" width="4" height="16" rx="1" />
-            <rect x="16" y="4" width="4" height="16" rx="1" />
+          <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+            <rect x="5" y="4" width="3" height="16" rx="1" />
+            <rect x="16" y="4" width="3" height="16" rx="1" />
           </svg>
         ) : (
-          <svg className="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24">
+          <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
             <path d="M8 5v14l11-7z" />
           </svg>
         )}
       </button>
-      <div
-        onClick={handleProgressClick}
-        className="flex-1 h-2 bg-zinc-700 hover:bg-zinc-600 rounded-full overflow-hidden relative cursor-pointer"
-      >
+      <div className="flex-1 flex flex-col gap-1">
         <div
-          className="absolute top-0 left-0 h-full bg-[#3797F0]"
-          style={{ width: `${progress}%` }}
-        />
+          onClick={handleProgressClick}
+          className={clsx(
+            "h-1.5 rounded-full overflow-hidden relative cursor-pointer",
+            isOwn
+              ? "bg-white/30 hover:bg-white/40"
+              : "bg-zinc-700 hover:bg-zinc-600",
+          )}
+        >
+          <div
+            className={clsx(
+              "absolute top-0 left-0 h-full rounded-full",
+              isOwn ? "bg-white" : "bg-[#3797F0]",
+            )}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <div className="flex justify-between items-center text-[10px]">
+          <span className={clsx(isOwn ? "text-blue-100" : "text-zinc-400")}>
+            {isPlaying ? "Playing" : "Voice message"}
+          </span>
+          <span className={clsx(isOwn ? "text-blue-100/80" : "text-zinc-400")}>
+            {audioRef.current && audioRef.current.duration
+              ? `${Math.floor(audioRef.current.currentTime / 60)}:${(
+                  Math.floor(audioRef.current.currentTime) % 60
+                )
+                  .toString()
+                  .padStart(
+                    2,
+                    "0",
+                  )} / ${Math.floor(audioRef.current.duration / 60)}:${(
+                  Math.floor(audioRef.current.duration) % 60
+                )
+                  .toString()
+                  .padStart(2, "0")}`
+              : "0:00"}
+          </span>
+        </div>
       </div>
     </div>
   );
 };
 
-const POPULAR_EMOJIS = [
-  "😊",
-  "😂",
-  "🥰",
-  "😍",
-  "😘",
-  "😜",
-  "😎",
-  "🥳",
-  "😭",
-  "😡",
-  "😱",
-  "🤔",
-  "👍",
-  "👎",
-  "❤️",
-  "🔥",
-  "✨",
-  "🎉",
-  "🙌",
-  "🙏",
-  "👏",
-  "👀",
-  "👋",
-  "💡",
-  "💯",
-  "🚀",
-  "🌟",
-  "💬",
-  "🎵",
-  "📷",
-  "🍔",
-  "🍕",
-  "☕",
-  "🍷",
-  "🐶",
-  "🐱",
-  "🌈",
-  "☀️",
-  "🌙",
-  "🌍",
+const EMOJI_LIST = [
+  { char: "😊", name: "smile happy" },
+  { char: "😂", name: "laugh cry tears joy" },
+  { char: "🥰", name: "love hearts" },
+  { char: "😍", name: "heart eyes" },
+  { char: "😘", name: "kiss" },
+  { char: "😜", name: "wink tongue" },
+  { char: "😎", name: "cool glasses" },
+  { char: "🥳", name: "party celebrate" },
+  { char: "😭", name: "cry sad tears" },
+  { char: "😡", name: "angry mad red" },
+  { char: "😱", name: "scream scared" },
+  { char: "🤔", name: "think hmm" },
+  { char: "👍", name: "thumbs up yes like" },
+  { char: "👎", name: "thumbs down no dislike" },
+  { char: "❤️", name: "heart love red" },
+  { char: "🔥", name: "fire hot lit" },
+  { char: "✨", name: "sparkles stars" },
+  { char: "🎉", name: "party popper celebrate" },
+  { char: "🙌", name: "raise hands praise" },
+  { char: "🙏", name: "pray please thanks" },
+  { char: "👏", name: "clap applause" },
+  { char: "👀", name: "eyes look" },
+  { char: "👋", name: "wave hello bye" },
+  { char: "💡", name: "light bulb idea" },
+  { char: "💯", name: "100 hundred perfect" },
+  { char: "🚀", name: "rocket ship launch" },
+  { char: "🌟", name: "star glowing" },
+  { char: "💬", name: "speech bubble chat" },
+  { char: "🎵", name: "music note song" },
+  { char: "📷", name: "camera photo" },
+  { char: "🍔", name: "hamburger burger food" },
+  { char: "🍕", name: "pizza food" },
+  { char: "☕", name: "coffee cup tea" },
+  { char: "🍷", name: "wine glass drink" },
+  { char: "🐶", name: "dog puppy animal" },
+  { char: "🐱", name: "cat kitten animal" },
+  { char: "🌈", name: "rainbow colors" },
+  { char: "☀️", name: "sun sunny weather" },
+  { char: "🌙", name: "moon night" },
+  { char: "🌍", name: "earth world globe" },
 ];
 
-export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
+export function ChatArea({
+  chatId,
+  onNewMessageTrigger,
+  onBack,
+}: ChatAreaProps) {
   const token = useSelector((state: RootState) => state.auth.token);
   const currentUserId = getUserIdFromToken(token);
 
@@ -272,6 +322,8 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
+  const [emojiSearch, setEmojiSearch] = useState("");
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -304,6 +356,7 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
         !emojiRef.current.contains(event.target as Node)
       ) {
         setIsEmojiOpen(false);
+        setEmojiSearch("");
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -312,10 +365,36 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
     };
   }, []);
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const isNotAtBottom = scrollHeight - scrollTop - clientHeight > 100;
+    setShowScrollButton(isNotAtBottom);
+  };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   const messages = Array.isArray(chatData?.data) ? chatData.data : [];
 
+  const isFirstLoadRef = useRef(true);
+  const prevMessagesLengthRef = useRef(0);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    isFirstLoadRef.current = true;
+    prevMessagesLengthRef.current = 0;
+  }, [chatId]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      if (isFirstLoadRef.current) {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        isFirstLoadRef.current = false;
+      } else if (messages.length > prevMessagesLengthRef.current) {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      }
+      prevMessagesLengthRef.current = messages.length;
+    }
   }, [messages]);
 
   const { ref: formInputRef, ...messageTextProps } = register("messageText");
@@ -423,7 +502,7 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
 
   if (!chatId) {
     return (
-      <div className="flex-1 bg-zinc-950 flex flex-col items-center justify-center p-8">
+      <div className="hidden md:flex flex-1 bg-zinc-950 flex-col items-center justify-center p-8">
         <div className="w-24 h-24 rounded-full border-2 border-zinc-800 flex items-center justify-center mb-4 bg-gradient-to-tr from-purple-600 to-pink-500 shadow-[0_0_40px_rgba(236,72,153,0.3)]">
           <SendHorizontal className="w-10 h-10 text-white -ml-1 mt-1 transform -rotate-45" />
         </div>
@@ -433,7 +512,7 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
         </p>
         <button
           onClick={onNewMessageTrigger}
-          className="bg-[#0095f6] hover:bg-[#1877f2] text-white font-semibold py-1.5 px-4 rounded-lg text-sm transition-colors"
+          className="bg-[#0095f6] hover:bg-[#1877f2] text-white font-semibold py-1.5 px-4 rounded-lg text-sm transition-colors cursor-pointer"
         >
           Send message
         </button>
@@ -461,21 +540,33 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
     : "";
 
   return (
-    <div className="flex-1 flex flex-col bg-zinc-950 h-full overflow-hidden">
+    <div className="flex-1 flex flex-col bg-zinc-950 h-full overflow-hidden w-full">
       {/* Header */}
-      <div className="h-[76px] flex items-center justify-between px-6 border-b border-zinc-800 shrink-0">
-        <Link
-          href={`/${partnerUsername}`}
-          className="flex items-center gap-3 hover:opacity-90 transition-opacity"
-        >
-          {renderAvatar(partnerImage, "w-11 h-11")}
-          <div className="flex flex-col">
-            <span className="text-zinc-50 font-semibold text-base">
-              {partnerUsername}
-            </span>
-            <span className="text-zinc-400 text-xs">Active now</span>
-          </div>
-        </Link>
+      <div className="h-[76px] flex items-center justify-between px-4 md:px-6 border-b border-zinc-800 shrink-0">
+        <div className="flex items-center gap-2">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="md:hidden p-1 text-zinc-400 hover:text-zinc-100 transition-colors mr-1 cursor-pointer"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          )}
+          <Link
+            href={`/${partnerUsername}`}
+            className="flex items-center gap-3 hover:opacity-90 transition-opacity"
+          >
+            {renderAvatar(partnerImage, "w-9 h-9 md:w-11 md:h-11")}
+            <div className="flex flex-col">
+              <span className="text-zinc-50 font-semibold text-sm md:text-base">
+                {partnerUsername}
+              </span>
+              <span className="text-zinc-400 text-[10px] md:text-xs">
+                Active now
+              </span>
+            </div>
+          </Link>
+        </div>
         <div className="flex items-center gap-6 text-zinc-50">
           <button className="hover:text-zinc-300 transition-colors">
             <Phone className="w-6 h-6" />
@@ -489,7 +580,10 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
         </div>
       </div>
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-3">
+      <div
+        className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-3"
+        onScroll={handleScroll}
+      >
         {messages.length === 0 && !isLoading ? (
           <div className="flex flex-col items-center justify-center h-full text-zinc-500">
             <Link
@@ -520,11 +614,15 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
             {messages.toReversed().map((msg: any) => {
               const isOwn = checkIsOwnMessage(msg);
               const fileUrl = msg.file;
+              const hasText = !!msg.messageText;
+              const isAudio = fileUrl && isAudioFile(fileUrl);
+              const isImage = fileUrl && !isAudio;
+
               return (
                 <div
                   key={msg.messageId}
                   className={clsx(
-                    "flex max-w-[75%] gap-2 items-end group relative",
+                    "flex max-w-[75%] my-2 items-end group relative animate-fade-in",
                     isOwn ? "self-end flex-row-reverse" : "self-start flex-row",
                   )}
                 >
@@ -540,28 +638,45 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
                       )}
                     </Link>
                   )}
-
                   <div
                     className={clsx(
-                      "px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap break-words flex flex-col gap-1.5 shadow-sm border",
-                      isOwn
-                        ? "bg-[#3797F0] text-white rounded-br-sm border-transparent"
-                        : "bg-zinc-800/80 text-zinc-50 rounded-bl-sm border-zinc-700/20",
+                      "text-sm whitespace-pre-wrap break-words flex flex-col gap-1.5",
+                      isImage && !hasText
+                        ? "p-0 bg-transparent border-none shadow-none"
+                        : clsx(
+                            "px-4 py-2.5 rounded-2xl shadow-sm border",
+                            isOwn
+                              ? "bg-[#3797F0] text-white rounded-br-sm border-transparent"
+                              : "bg-zinc-800/85 text-zinc-50 rounded-bl-sm border-zinc-700/20",
+                          ),
                     )}
                   >
                     {fileUrl && (
                       <div className="rounded-xl overflow-hidden max-w-full">
-                        {isAudioFile(fileUrl) ? (
-                          <AudioPlayer src={resolveFileUrl(fileUrl)} />
-                        ) : (
-                          <img
+                        {isAudio ? (
+                          <AudioPlayer
                             src={resolveFileUrl(fileUrl)}
-                            alt="attachment"
-                            className="rounded-xl max-w-full h-auto object-cover max-h-60 cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() =>
-                              setPreviewImageUrl(resolveFileUrl(fileUrl))
-                            }
+                            isOwn={isOwn}
                           />
+                        ) : (
+                          <div className="relative group/img max-w-full overflow-hidden rounded-2xl border border-zinc-800/50 shadow-md">
+                            <img
+                              src={resolveFileUrl(fileUrl)}
+                              alt="attachment"
+                              className="max-w-full h-auto object-cover max-h-72 cursor-pointer hover:scale-[1.02] transition-transform duration-200"
+                              onClick={() =>
+                                setPreviewImageUrl(resolveFileUrl(fileUrl))
+                              }
+                            />
+                            {/* Time overlay for pure images */}
+                            {!hasText && (
+                              <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-full text-[9px] text-zinc-300 font-medium select-none shadow-sm">
+                                {msg.sendMassageDate
+                                  ? msg.sendMassageDate.slice(11, 16)
+                                  : ""}
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
@@ -570,22 +685,24 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
                         {msg.messageText}
                       </div>
                     )}
-                    <sub
-                      className={clsx(
-                        "text-[9px] font-medium block mt-1 text-right select-none",
-                        isOwn ? "text-zinc-200" : "text-zinc-400",
-                      )}
-                    >
-                      {msg.sendMassageDate
-                        ? msg.sendMassageDate.slice(0, 16).replace("T", " ")
-                        : ""}
-                    </sub>
+                    {/* Only render regular sub-timestamp if it's NOT an image-only message */}
+                    {!(isImage && !hasText) && (
+                      <sub
+                        className={clsx(
+                          "text-[9px] font-medium block mt-1 text-right select-none",
+                          isOwn ? "text-zinc-200" : "text-zinc-400",
+                        )}
+                      >
+                        {msg.sendMassageDate
+                          ? msg.sendMassageDate.slice(11, 16)
+                          : ""}
+                      </sub>
+                    )}
                   </div>
-
                   {/* Minimalistic Delete Button */}
                   <button
                     onClick={() => handleDeleteMessage(msg.messageId)}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-zinc-800/60 rounded-lg text-zinc-500 hover:text-red-500 transition-all self-center shrink-0"
+                    className="block hidden lg:group-hover:block p-1.5 hover:bg-zinc-800/60 rounded-lg text-zinc-500 hover:text-red-500 transition-all self-center shrink-0 cursor-pointer"
                     title="Delete message"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -597,11 +714,21 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
           </>
         )}
       </div>
+
+      {showScrollButton && (
+        <button
+          onClick={scrollToBottom}
+          className="absolute bottom-[88px] right-6 z-40 bg-zinc-800 hover:bg-zinc-700 text-zinc-50 p-2.5 rounded-full shadow-lg border border-zinc-700/50 transition-all cursor-pointer"
+        >
+          <ChevronDown className="w-5 h-5" />
+        </button>
+      )}
+
       {/* Input Area */}
-      <div className="p-4 pt-2 shrink-0">
+      <div className="p-4 pt-2 shrink-0 bg-zinc-950">
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="border border-zinc-800 bg-zinc-950 rounded-full px-2 py-1.5 flex items-center min-h-[44px] focus-within:border-zinc-700 transition-colors"
+          className="border border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/60 rounded-3xl px-2.5 py-1.5 flex items-center min-h-[44px] focus-within:bg-zinc-900/80 focus-within:border-zinc-700 transition-all duration-200"
         >
           {/* Emoji Trigger */}
           <div className="relative" ref={emojiRef}>
@@ -613,19 +740,33 @@ export function ChatArea({ chatId, onNewMessageTrigger }: ChatAreaProps) {
               <Smile className="w-6 h-6" />
             </button>
             {isEmojiOpen && (
-              <div className="absolute bottom-12 left-0 z-50 w-72 h-48 bg-zinc-900 border border-zinc-800 rounded-xl p-3 shadow-2xl flex flex-col">
-                <span className="text-zinc-400 text-xs font-semibold mb-2">
-                  Emojis
-                </span>
-                <div className="flex-1 overflow-y-auto grid grid-cols-8 gap-2 scrollbar-thin">
-                  {POPULAR_EMOJIS.map((emoji) => (
+              <div className="absolute bottom-12 left-0 z-50 w-[300px] h-72 bg-zinc-900 border border-zinc-800 rounded-xl p-3 shadow-2xl flex flex-col">
+                <div className="flex items-center justify-between mb-3 border-b border-zinc-800 pb-2">
+                  <span className="text-zinc-400 text-sm font-semibold">
+                    Emojis
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search emojis..."
+                  value={emojiSearch}
+                  onChange={(e) => setEmojiSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.preventDefault();
+                  }}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-zinc-50 focus:outline-none focus:border-zinc-700 mb-3"
+                />
+                <div className="flex-1 overflow-y-auto grid grid-cols-8 gap-2 scrollbar-thin content-start">
+                  {EMOJI_LIST.filter((e) =>
+                    e.name.includes(emojiSearch.toLowerCase()),
+                  ).map((emojiObj) => (
                     <button
-                      key={emoji}
+                      key={emojiObj.char}
                       type="button"
-                      onClick={() => insertEmoji(emoji)}
-                      className="text-xl p-1 hover:bg-zinc-800 rounded transition-colors"
+                      onClick={() => insertEmoji(emojiObj.char)}
+                      className="text-xl p-1 hover:bg-zinc-800 rounded transition-colors flex items-center justify-center"
                     >
-                      {emoji}
+                      {emojiObj.char}
                     </button>
                   ))}
                 </div>

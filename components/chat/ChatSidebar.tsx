@@ -84,7 +84,8 @@ interface SidebarChatItemProps {
   activeChatId: number | null;
   onSelectChat: (chatId: number | null) => void;
   activeTab: "Messages" | "Requests";
-}const SidebarSkeleton = () => (
+}
+const SidebarSkeleton = () => (
   <div className="space-y-4 px-6 pt-2">
     {[...Array(5)].map((_, i) => (
       <div key={i} className="flex items-center gap-3 py-2 animate-pulse">
@@ -121,10 +122,15 @@ function SidebarChatItem({
 
   // Determine partner details
   const isCurrentUserSender = currentUserId
-    ? String(chat.sendUserId).toLowerCase() === String(currentUserId).toLowerCase()
+    ? String(chat.sendUserId).toLowerCase() ===
+      String(currentUserId).toLowerCase()
     : false;
-  const partnerName = isCurrentUserSender ? chat.receiveUserName : chat.sendUserName;
-  const partnerImage = isCurrentUserSender ? chat.receiveUserImage : chat.sendUserImage;
+  const partnerName = isCurrentUserSender
+    ? chat.receiveUserName
+    : chat.sendUserName;
+  const partnerImage = isCurrentUserSender
+    ? chat.receiveUserImage
+    : chat.sendUserImage;
 
   // Determine the last message content (newest message is at index 0 from API)
   const lastMsg = messages[0];
@@ -150,7 +156,11 @@ function SidebarChatItem({
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(`Are you sure you want to delete this chat with ${partnerName || "Unknown User"}?`)) {
+    if (
+      confirm(
+        `Are you sure you want to delete this chat with ${partnerName || "Unknown User"}?`,
+      )
+    ) {
       try {
         await deleteChat({ chatId }).unwrap();
         if (activeChatId === chatId) {
@@ -171,7 +181,7 @@ function SidebarChatItem({
       )}
     >
       <Link
-        href={`/${partnerName || ""}`}
+        href={`/${partnerName}`}
         onClick={(e) => e.stopPropagation()}
         className="relative block hover:opacity-90 transition-opacity"
       >
@@ -189,7 +199,7 @@ function SidebarChatItem({
       <button
         onClick={handleDelete}
         disabled={isDeleting}
-        className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-red-500 transition-all shrink-0 disabled:opacity-50"
+        className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-red-500 transition-all shrink-0 disabled:opacity-50"
         title="Delete Chat"
       >
         <Trash2 className="w-4 h-4" />
@@ -214,7 +224,12 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
   const currentUsername = profileResponse?.data?.userName || "Loading...";
 
   return (
-    <div className="w-[350px] flex-shrink-0 border-r border-zinc-800 bg-zinc-950 flex flex-col h-full">
+    <div
+      className={clsx(
+        "w-full md:w-[350px] flex-shrink-0 border-r border-zinc-800 bg-zinc-950 flex flex-col h-full",
+        activeChatId !== null && "hidden md:flex",
+      )}
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-6 pb-4">
         <button className="flex items-center gap-2 text-zinc-50 font-bold text-xl hover:text-zinc-300 transition-colors">

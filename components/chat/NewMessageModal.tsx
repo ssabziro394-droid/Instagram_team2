@@ -159,8 +159,6 @@ export function NewMessageModal({
 
   if (!isOpen) return null;
 
-  console.log(filteredContacts);
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="w-full max-w-md rounded-xl bg-zinc-900 border border-zinc-800 shadow-2xl flex flex-col max-h-[80vh]">

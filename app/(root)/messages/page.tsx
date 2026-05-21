@@ -10,7 +10,7 @@ export default function MessagesPage() {
   const [isNewMessageModalOpen, setIsNewMessageModalOpen] = useState(false);
 
   return (
-    <div className="flex h-screen w-full bg-zinc-950 text-zinc-50 overflow-hidden">
+    <div className="flex h-[calc(100vh-4rem)] md:h-screen w-full bg-zinc-950 text-zinc-50 overflow-hidden">
       {/* Sidebar - Left Column */}
       <ChatSidebar 
         activeChatId={activeChatId} 
@@ -21,6 +21,7 @@ export default function MessagesPage() {
       <ChatArea 
         chatId={activeChatId} 
         onNewMessageTrigger={() => setIsNewMessageModalOpen(true)}
+        onBack={() => setActiveChatId(null)}
       />
 
       {/* New Message Modal - Triggered from Empty State */}
