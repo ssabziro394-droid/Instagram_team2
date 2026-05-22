@@ -1,24 +1,37 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+// @TODO(Team Lead): Please review this RootState import needed to access the auth token
+import type { RootState } from "../store";
+
+const API_BASE_URL = "https://instagram-api.softclub.tj/";
+
+function getStoredToken() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return (
+    localStorage.getItem("token") ||
+    localStorage.getItem("accessToken") ||
+    localStorage.getItem("access_token")
+  );
+}
 
 // Base API using Swagger API backend
 export const baseApi = createApi({
   reducerPath: "api",
-  baseQuery: fetchBaseQuery({ 
-    baseUrl: process.env.NEXT_PUBLIC_API_URL,
-    prepareHeaders: (headers) => {
-      // Retrieve token dynamically from localStorage if available in browser
-      if (typeof window !== "undefined") {
-        const token = 
-          localStorage.getItem("token") || 
-          localStorage.getItem("accessToken") || 
-          localStorage.getItem("access_token");
-        if (token) {
-          headers.set("authorization", `Bearer ${token}`);
-        }
+  baseQuery: fetchBaseQuery({
+    baseUrl:
+      // here: силкаи запрос кати тугри намегирад, барои хавай ин силкара мондм
+      API_BASE_URL,
+    prepareHeaders: (headers, { getState }) => {
+      //here: @TODO(Team Lead): Added token injection logic here. Please review and approve.
+      const token = (getState() as RootState).auth?.token ?? getStoredToken();
+      if (token) {
+        headers.set("Authorization", `Bearer ${token}`);
       }
       return headers;
     },
   }),
   tagTypes: ["Post", "User", "Reel", "Comment"],
   endpoints: () => ({}),
-}); 
+});
