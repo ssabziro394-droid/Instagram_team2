@@ -113,6 +113,8 @@ function SidebarChatItem({
   const [deleteChat, { isLoading: isDeleting }] = useDeleteChatMutation();
   const messages = chatDetails?.data || [];
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   // Determine if the chat has no messages yet (initial-chat where they haven't written to each other)
   const isInitial = messages.length === 0;
 
@@ -154,21 +156,21 @@ function SidebarChatItem({
     }
   }
 
-  const handleDelete = async (e: React.MouseEvent) => {
+  const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (
-      confirm(
-        `Are you sure you want to delete this chat with ${partnerName || "Unknown User"}?`,
-      )
-    ) {
-      try {
-        await deleteChat({ chatId }).unwrap();
-        if (activeChatId === chatId) {
-          onSelectChat(null);
-        }
-      } catch (err) {
-        console.error("Failed to delete chat:", err);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      await deleteChat({ chatId }).unwrap();
+      if (activeChatId === chatId) {
+        onSelectChat(null);
       }
+    } catch (err) {
+      console.error("Failed to delete chat:", err);
+    } finally {
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -204,6 +206,53 @@ function SidebarChatItem({
       >
         <Trash2 className="w-4 h-4" />
       </button>
+
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-[1px]"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowDeleteConfirm(false);
+          }}
+        >
+          <div
+            className="bg-[#262626] w-[260px] md:w-[400px] rounded-xl overflow-hidden flex flex-col text-center shadow-2xl border border-zinc-800 animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 flex flex-col gap-2">
+              <h3 className="text-zinc-50 text-lg font-semibold leading-snug">
+                Delete chat?
+              </h3>
+              <p className="text-zinc-400 text-xs leading-relaxed px-2">
+                Once you delete your copy of this conversation, it cannot be
+                undone.
+              </p>
+            </div>
+
+            <div className="flex flex-col border-t border-zinc-800">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleConfirmDelete();
+                }}
+                disabled={isDeleting}
+                className="py-3 text-red-500 font-bold text-sm hover:bg-white/5 active:bg-white/10 transition-colors border-b border-zinc-800 disabled:opacity-50 cursor-pointer"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDeleteConfirm(false);
+                }}
+                className="py-3 text-zinc-50 font-normal text-sm hover:bg-white/5 active:bg-white/10 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -249,25 +298,35 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
     {
       id: "note-2",
       userName: "parvizak",
-      avatar: chats.find((c: any) => {
-        const isSender = currentUserId
-          ? String(c.sendUserId).toLowerCase() === String(currentUserId).toLowerCase()
-          : false;
-        const pName = isSender ? c.receiveUserName : c.sendUserName;
-        return pName === "parvizak";
-      })?.receiveUserImage || chats[0]?.receiveUserImage || chats[0]?.sendUserImage || null,
+      avatar:
+        chats.find((c: any) => {
+          const isSender = currentUserId
+            ? String(c.sendUserId).toLowerCase() ===
+              String(currentUserId).toLowerCase()
+            : false;
+          const pName = isSender ? c.receiveUserName : c.sendUserName;
+          return pName === "parvizak";
+        })?.receiveUserImage ||
+        chats[0]?.receiveUserImage ||
+        chats[0]?.sendUserImage ||
+        null,
       noteText: "🎵 Breath of L...\nSina Bathaie...\n🌹",
     },
     {
       id: "note-3",
       userName: "narueq",
-      avatar: chats.find((c: any) => {
-        const isSender = currentUserId
-          ? String(c.sendUserId).toLowerCase() === String(currentUserId).toLowerCase()
-          : false;
-        const pName = isSender ? c.receiveUserName : c.sendUserName;
-        return pName === "narueq";
-      })?.receiveUserImage || chats[1]?.receiveUserImage || chats[1]?.sendUserImage || null,
+      avatar:
+        chats.find((c: any) => {
+          const isSender = currentUserId
+            ? String(c.sendUserId).toLowerCase() ===
+              String(currentUserId).toLowerCase()
+            : false;
+          const pName = isSender ? c.receiveUserName : c.sendUserName;
+          return pName === "narueq";
+        })?.receiveUserImage ||
+        chats[1]?.receiveUserImage ||
+        chats[1]?.sendUserImage ||
+        null,
       noteText: "Working on it 💻",
     },
     {
@@ -319,7 +378,10 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
         style={{ msOverflowStyle: "none", scrollbarWidth: "none" }}
       >
         {mockNotes.map((note) => (
-          <div key={note.id} className="flex flex-col items-center shrink-0 w-20 relative pt-1 pb-2">
+          <div
+            key={note.id}
+            className="flex flex-col items-center shrink-0 w-20 relative pt-1 pb-2"
+          >
             {/* Note bubble */}
             <div className="relative bg-zinc-800 text-zinc-50 text-[10px] px-2 py-1.5 rounded-2xl mb-2 text-center w-[78px] min-h-[42px] flex items-center justify-center shadow-lg border border-zinc-700/30">
               <span className="line-clamp-2 leading-tight font-medium whitespace-pre-line">

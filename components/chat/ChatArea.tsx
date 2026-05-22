@@ -14,6 +14,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronDown,
+  Play,
+  Music,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -98,6 +100,17 @@ const isAudioFile = (url: string) => {
   );
 };
 
+const isVideoFile = (url: string) => {
+  const cleanUrl = url.toLowerCase().split("?")[0];
+  return (
+    cleanUrl.endsWith(".mp4") ||
+    cleanUrl.endsWith(".mov") ||
+    cleanUrl.endsWith(".avi") ||
+    cleanUrl.endsWith(".mkv") ||
+    url.includes("video/")
+  );
+};
+
 const renderAvatar = (
   src: string | null | undefined,
   className = "w-11 h-11",
@@ -124,6 +137,7 @@ const renderAvatar = (
 const AudioPlayer = ({ src, isOwn }: { src: string; isOwn: boolean }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const togglePlay = () => {
@@ -139,6 +153,13 @@ const AudioPlayer = ({ src, isOwn }: { src: string; isOwn: boolean }) => {
     } else {
       audioRef.current.pause();
     }
+  };
+
+  const toggleSpeed = () => {
+    if (!audioRef.current) return;
+    let newRate = playbackRate === 1 ? 1.5 : playbackRate === 1.5 ? 2 : 1;
+    setPlaybackRate(newRate);
+    audioRef.current.playbackRate = newRate;
   };
 
   const handleTimeUpdate = () => {
@@ -234,6 +255,108 @@ const AudioPlayer = ({ src, isOwn }: { src: string; isOwn: boolean }) => {
                   .padStart(2, "0")}`
               : "0:00"}
           </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleSpeed();
+            }}
+            className={clsx(
+              "ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold transition-colors cursor-pointer border",
+              isOwn
+                ? "bg-white/10 hover:bg-white/20 text-white border-white/20"
+                : "bg-zinc-700/50 hover:bg-zinc-600/50 text-zinc-300 border-zinc-600/50",
+            )}
+          >
+            {playbackRate}x
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const VideoPlayerPreview = ({
+  src,
+  onClick,
+  className,
+}: {
+  src: string;
+  onClick: () => void;
+  className?: string;
+}) => {
+  return (
+    <div
+      className={clsx(
+        "relative group/vid max-w-full overflow-hidden cursor-pointer bg-black flex items-center justify-center",
+        className,
+      )}
+      onClick={onClick}
+    >
+      <video
+        src={src}
+        className="max-w-full w-full h-auto object-cover max-h-[300px] opacity-90 group-hover/vid:opacity-100 transition-opacity duration-200"
+        preload="metadata"
+      />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-12 h-12 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white/90 group-hover/vid:scale-110 transition-transform shadow-lg border border-white/20">
+          <Play className="w-5 h-5 ml-1" fill="currentColor" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ModalVideoPlayer = ({
+  src,
+  onClose,
+}: {
+  src: string;
+  onClose: () => void;
+}) => {
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const toggleSpeed = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+    let newRate = playbackRate === 1 ? 1.5 : playbackRate === 1.5 ? 2 : 1;
+    setPlaybackRate(newRate);
+    videoRef.current.playbackRate = newRate;
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4 cursor-pointer"
+      onClick={onClose}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-100 transition-colors p-2 z-50"
+      >
+        <X className="w-8 h-8" />
+      </button>
+
+      <div
+        className="relative max-w-full max-h-[90vh] flex flex-col items-center group"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <video
+          ref={videoRef}
+          src={src}
+          controls
+          autoPlay
+          className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl animate-fade-in"
+        />
+        <div className="absolute top-4 left-4 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <button
+            type="button"
+            onClick={toggleSpeed}
+            className="bg-black/60 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-sm font-semibold hover:bg-black/80 transition-colors border border-white/10"
+          >
+            {playbackRate}x Speed
+          </button>
         </div>
       </div>
     </div>
@@ -290,7 +413,9 @@ const formatMessageText = (text: string, isOwn: boolean) => {
 
   return parts.map((part, index) => {
     if (part.match(urlRegex)) {
-      const href = part.toLowerCase().startsWith("www.") ? `https://${part}` : part;
+      const href = part.toLowerCase().startsWith("www.")
+        ? `https://${part}`
+        : part;
       return (
         <a
           key={index}
@@ -299,7 +424,9 @@ const formatMessageText = (text: string, isOwn: boolean) => {
           rel="noopener noreferrer"
           className={clsx(
             "underline font-semibold transition-colors duration-150 break-all",
-            isOwn ? "text-blue-100 hover:text-white" : "text-sky-400 hover:text-sky-300"
+            isOwn
+              ? "text-blue-100 hover:text-white"
+              : "text-sky-400 hover:text-sky-300",
           )}
           onClick={(e) => e.stopPropagation()}
         >
@@ -331,7 +458,7 @@ export function ChatArea({
   const currentChat = chats.find((c: any) => c.chatId === chatId);
 
   const [sendMessage, { isLoading: isSending }] = useSendMessageMutation();
-  const [deleteMessage] = useDeleteMessageMutation();
+  const [deleteMessage, { isLoading: isDeletingMessage }] = useDeleteMessageMutation();
 
   const checkIsOwnMessage = (msg: any) => {
     if (!msg || !msg.userId || !currentUserId) return false;
@@ -352,7 +479,11 @@ export function ChatArea({
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   const [emojiSearch, setEmojiSearch] = useState("");
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [previewMedia, setPreviewMedia] = useState<{
+    url: string;
+    type: "image" | "video";
+  } | null>(null);
+  const [deleteMessageId, setDeleteMessageId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const { register, handleSubmit, setValue, watch, reset } =
@@ -363,6 +494,31 @@ export function ChatArea({
 
   const selectedFile = watch("file");
   const messageText = watch("messageText");
+  const [filePreview, setFilePreview] = useState<{
+    url: string;
+    type: "image" | "video" | "audio";
+  } | null>(null);
+
+  useEffect(() => {
+    if (selectedFile) {
+      const url = URL.createObjectURL(selectedFile);
+      const isVideo = selectedFile.type.startsWith("video/");
+      const isAudio =
+        selectedFile.type.startsWith("audio/") ||
+        selectedFile.name.endsWith(".mp3") ||
+        selectedFile.name.endsWith(".wav") ||
+        selectedFile.name.endsWith(".ogg") ||
+        selectedFile.name.endsWith(".m4a") ||
+        selectedFile.name.endsWith(".webm");
+      setFilePreview({
+        url,
+        type: isVideo ? "video" : isAudio ? "audio" : "image",
+      });
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setFilePreview(null);
+    }
+  }, [selectedFile]);
 
   useEffect(() => {
     return () => {
@@ -488,14 +644,18 @@ export function ChatArea({
     }
   };
 
-  const handleDeleteMessage = async (messageId: number) => {
-    if (!chatId) return;
-    if (confirm("Are you sure you want to delete this message?")) {
-      try {
-        await deleteMessage({ messageId, chatId }).unwrap();
-      } catch (error) {
-        console.error("Failed to delete message", error);
-      }
+  const handleDeleteMessage = (messageId: number) => {
+    setDeleteMessageId(messageId);
+  };
+
+  const handleConfirmDeleteMessage = async () => {
+    if (!chatId || deleteMessageId === null) return;
+    try {
+      await deleteMessage({ messageId: deleteMessageId, chatId }).unwrap();
+    } catch (error) {
+      console.error("Failed to delete message", error);
+    } finally {
+      setDeleteMessageId(null);
     }
   };
 
@@ -648,14 +808,18 @@ export function ChatArea({
                 const fileUrl = msg.file;
                 const hasText = !!msg.messageText;
                 const isAudio = fileUrl && isAudioFile(fileUrl);
-                const isImage = fileUrl && !isAudio;
+                const isVideo = fileUrl && isVideoFile(fileUrl);
+                const isImage = fileUrl && !isAudio && !isVideo;
 
                 // Dynamic border logic based on sequence of messages from the same sender
                 let borderClass = "";
                 if (isOwn) {
-                  const isPrevOwn = index > 0 && checkIsOwnMessage(chronoMessages[index - 1]);
-                  const isNextOwn = index < chronoMessages.length - 1 && checkIsOwnMessage(chronoMessages[index + 1]);
-                  
+                  const isPrevOwn =
+                    index > 0 && checkIsOwnMessage(chronoMessages[index - 1]);
+                  const isNextOwn =
+                    index < chronoMessages.length - 1 &&
+                    checkIsOwnMessage(chronoMessages[index + 1]);
+
                   if (isPrevOwn && isNextOwn) {
                     borderClass = "rounded-2xl rounded-tr-sm rounded-br-sm";
                   } else if (isPrevOwn) {
@@ -666,9 +830,12 @@ export function ChatArea({
                     borderClass = "rounded-2xl rounded-br-sm";
                   }
                 } else {
-                  const isPrevOther = index > 0 && !checkIsOwnMessage(chronoMessages[index - 1]);
-                  const isNextOther = index < chronoMessages.length - 1 && !checkIsOwnMessage(chronoMessages[index + 1]);
-                  
+                  const isPrevOther =
+                    index > 0 && !checkIsOwnMessage(chronoMessages[index - 1]);
+                  const isNextOther =
+                    index < chronoMessages.length - 1 &&
+                    !checkIsOwnMessage(chronoMessages[index + 1]);
+
                   if (isPrevOther && isNextOther) {
                     borderClass = "rounded-2xl rounded-tl-sm rounded-bl-sm";
                   } else if (isPrevOther) {
@@ -685,7 +852,9 @@ export function ChatArea({
                     key={msg.messageId}
                     className={clsx(
                       "flex max-w-[75%] my-[2px] items-end group relative animate-fade-in",
-                      isOwn ? "self-end flex-row-reverse" : "self-start flex-row",
+                      isOwn
+                        ? "self-end flex-row-reverse"
+                        : "self-start flex-row",
                     )}
                   >
                     {/* Sender Avatar for incoming */}
@@ -695,7 +864,9 @@ export function ChatArea({
                         className="hover:opacity-90 transition-opacity shrink-0 mr-2"
                       >
                         {(() => {
-                          const isNextOther = index < chronoMessages.length - 1 && !checkIsOwnMessage(chronoMessages[index + 1]);
+                          const isNextOther =
+                            index < chronoMessages.length - 1 &&
+                            !checkIsOwnMessage(chronoMessages[index + 1]);
                           if (isNextOther) {
                             return <div className="w-8 h-8" />;
                           }
@@ -708,11 +879,11 @@ export function ChatArea({
                     )}
                     <div
                       className={clsx(
-                        "text-sm whitespace-pre-wrap break-words flex flex-col gap-1.5",
-                        isImage && !hasText
+                        "text-sm whitespace-pre-wrap break-words flex flex-col relative",
+                        (isImage || isVideo) && !hasText
                           ? "p-0 bg-transparent border-none shadow-none"
                           : clsx(
-                              "px-4 py-2.5 shadow-sm border",
+                              "shadow-sm border overflow-hidden",
                               borderClass,
                               isOwn
                                 ? "bg-[#3797F0] text-white border-transparent"
@@ -720,66 +891,110 @@ export function ChatArea({
                             ),
                       )}
                     >
-                      {fileUrl && (
-                        <div className="rounded-xl overflow-hidden max-w-full">
-                          {isAudio ? (
-                            <AudioPlayer
+                      {fileUrl && isAudio && (
+                        <div
+                          className={clsx(
+                            "px-4",
+                            hasText ? "pt-2.5 pb-1" : "py-2.5",
+                          )}
+                        >
+                          <AudioPlayer
+                            src={resolveFileUrl(fileUrl)}
+                            isOwn={isOwn}
+                          />
+                        </div>
+                      )}
+                      {fileUrl && (isImage || isVideo) && (
+                        <div
+                          className={clsx(
+                            "relative group/media w-full overflow-hidden bg-black flex items-center justify-center",
+                            !hasText
+                              ? "rounded-2xl border border-zinc-800/50 shadow-md"
+                              : "",
+                          )}
+                        >
+                          {isVideo ? (
+                            <VideoPlayerPreview
                               src={resolveFileUrl(fileUrl)}
-                              isOwn={isOwn}
+                              onClick={() =>
+                                setPreviewMedia({
+                                  url: resolveFileUrl(fileUrl),
+                                  type: "video",
+                                })
+                              }
+                              className="w-full"
                             />
                           ) : (
-                            <div className="relative group/img max-w-full overflow-hidden rounded-2xl border border-zinc-800/50 shadow-md">
-                              <img
-                                src={resolveFileUrl(fileUrl)}
-                                alt="attachment"
-                                className="max-w-full h-auto object-cover max-h-72 cursor-pointer hover:scale-[1.02] transition-transform duration-200"
-                                onClick={() =>
-                                  setPreviewImageUrl(resolveFileUrl(fileUrl))
-                                }
-                              />
-                              {/* Time overlay for pure images */}
-                              {!hasText && (
-                                <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-full text-[9px] text-zinc-300 font-medium select-none shadow-sm">
-                                  {msg.sendMassageDate
-                                    ? msg.sendMassageDate.slice(11, 16)
-                                    : ""}
-                                </div>
-                              )}
+                            <img
+                              src={resolveFileUrl(fileUrl)}
+                              alt="attachment"
+                              className="w-full h-auto object-cover max-h-[300px] cursor-pointer hover:opacity-90 transition-opacity duration-200"
+                              onClick={() =>
+                                setPreviewMedia({
+                                  url: resolveFileUrl(fileUrl),
+                                  type: "image",
+                                })
+                              }
+                            />
+                          )}
+                          {!hasText && (
+                            <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-full text-[9px] text-zinc-300 font-medium select-none shadow-sm pointer-events-none z-10">
+                              {msg.sendMassageDate
+                                ? msg.sendMassageDate.slice(11, 16)
+                                : ""}
                             </div>
                           )}
                         </div>
                       )}
+
                       {msg.messageText && (
-                        <div className="text-[15px] leading-relaxed">
+                        <div
+                          className={clsx(
+                            "text-[15px] leading-relaxed",
+                            isImage || isVideo
+                              ? "px-3 pt-2 pb-1"
+                              : isAudio
+                                ? "px-4 pb-1"
+                                : "px-4 pt-2.5 pb-1",
+                          )}
+                        >
                           {formatMessageText(msg.messageText, isOwn)}
                         </div>
                       )}
-                    {/* Only render regular sub-timestamp if it's NOT an image-only message */}
-                    {!(isImage && !hasText) && (
-                      <sub
-                        className={clsx(
-                          "text-[9px] font-medium block mt-1 text-right select-none",
-                          isOwn ? "text-zinc-200" : "text-zinc-400",
-                        )}
-                      >
-                        {msg.sendMassageDate
-                          ? msg.sendMassageDate.slice(11, 16)
-                          : ""}
-                      </sub>
-                    )}
+
+                      {/* Timestamp for bubbles with text or audio */}
+                      {(isAudio || hasText) && (
+                        <div
+                          className={clsx(
+                            "flex justify-end",
+                            isImage || isVideo ? "px-3 pb-2" : "px-4 pb-2",
+                          )}
+                        >
+                          <span
+                            className={clsx(
+                              "text-[9px] font-medium select-none",
+                              isOwn ? "text-blue-100/70" : "text-zinc-500",
+                            )}
+                          >
+                            {msg.sendMassageDate
+                              ? msg.sendMassageDate.slice(11, 16)
+                              : ""}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    {/* Minimalistic Delete Button */}
+                    <button
+                      onClick={() => handleDeleteMessage(msg.messageId)}
+                      className="block hidden lg:group-hover:block p-1.5 hover:bg-zinc-800/60 rounded-lg text-zinc-500 hover:text-red-500 transition-all self-center shrink-0 cursor-pointer"
+                      title="Delete message"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  {/* Minimalistic Delete Button */}
-                  <button
-                    onClick={() => handleDeleteMessage(msg.messageId)}
-                    className="block hidden lg:group-hover:block p-1.5 hover:bg-zinc-800/60 rounded-lg text-zinc-500 hover:text-red-500 transition-all self-center shrink-0 cursor-pointer"
-                    title="Delete message"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              );
-            });
-          })()}
+                );
+              });
+            })()}
             <div ref={messagesEndRef} />
           </>
         )}
@@ -798,152 +1013,227 @@ export function ChatArea({
       <div className="p-4 pt-2 shrink-0 bg-zinc-950">
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="border border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/60 rounded-3xl px-2.5 py-1.5 flex items-center min-h-[44px] focus-within:bg-zinc-900/80 focus-within:border-zinc-700 transition-all duration-200"
+          className="border border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/60 rounded-[28px] px-1.5 py-1.5 flex flex-col focus-within:bg-zinc-900/80 focus-within:border-zinc-700 transition-all duration-200"
         >
-          {/* Emoji Trigger */}
-          <div className="relative" ref={emojiRef}>
-            <button
-              type="button"
-              onClick={() => setIsEmojiOpen(!isEmojiOpen)}
-              className="p-2 text-zinc-50 hover:text-zinc-300 transition-colors"
-            >
-              <Smile className="w-6 h-6" />
-            </button>
-            {isEmojiOpen && (
-              <div className="absolute bottom-12 left-0 z-50 w-[300px] h-72 bg-zinc-900 border border-zinc-800 rounded-xl p-3 shadow-2xl flex flex-col">
-                <div className="flex items-center justify-between mb-3 border-b border-zinc-800 pb-2">
-                  <span className="text-zinc-400 text-sm font-semibold">
-                    Emojis
-                  </span>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search emojis..."
-                  value={emojiSearch}
-                  onChange={(e) => setEmojiSearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") e.preventDefault();
-                  }}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-zinc-50 focus:outline-none focus:border-zinc-700 mb-3"
-                />
-                <div className="flex-1 overflow-y-auto grid grid-cols-8 gap-2 scrollbar-thin content-start">
-                  {EMOJI_LIST.filter((e) =>
-                    e.name.includes(emojiSearch.toLowerCase()),
-                  ).map((emojiObj) => (
-                    <button
-                      key={emojiObj.char}
-                      type="button"
-                      onClick={() => insertEmoji(emojiObj.char)}
-                      className="text-xl p-1 hover:bg-zinc-800 rounded transition-colors flex items-center justify-center"
-                    >
-                      {emojiObj.char}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1 flex flex-col px-2">
-            {selectedFile && (
-              <div className="flex items-center gap-2 mb-1 bg-zinc-900 rounded px-2 py-1 max-w-fit">
-                <span className="text-xs text-zinc-400 truncate max-w-[150px]">
-                  {selectedFile.name}
-                </span>
+          {/* File Preview Thumbnail */}
+          {filePreview && (
+            <div className="flex px-12 pt-2 pb-1">
+              <div className="relative group/preview w-14 h-14 rounded-xl overflow-hidden border border-zinc-700/50 bg-black shrink-0 shadow-sm">
+                {filePreview.type === "video" ? (
+                  <>
+                    <video
+                      src={filePreview.url}
+                      className="w-full h-full object-cover opacity-80"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <Play
+                        className="w-5 h-5 text-white opacity-90"
+                        fill="currentColor"
+                      />
+                    </div>
+                  </>
+                ) : filePreview.type === "audio" ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900 border border-zinc-700/30">
+                    {selectedFile?.name?.toLowerCase().includes("voice") ||
+                    selectedFile?.type?.toLowerCase().includes("voice") ? (
+                      <Mic className="w-5 h-5 text-zinc-300" />
+                    ) : (
+                      <Music className="w-5 h-5 text-zinc-300" />
+                    )}
+                    <span className="text-[9px] text-zinc-400 mt-0.5 truncate max-w-[48px] px-0.5 font-medium">
+                      {selectedFile?.name?.toLowerCase().includes("voice")
+                        ? "Voice"
+                        : "Audio"}
+                    </span>
+                  </div>
+                ) : (
+                  <img
+                    src={filePreview.url}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() => setValue("file", undefined)}
-                  className="text-zinc-500 hover:text-zinc-300"
+                  className="absolute top-1 right-1 w-4 h-4 bg-black/60 hover:bg-black/90 rounded-full flex items-center justify-center text-zinc-300 hover:text-white transition-colors cursor-pointer"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-2.5 h-2.5" />
                 </button>
               </div>
-            )}
+            </div>
+          )}
 
-            {!isRecording ? (
-              <input
-                {...messageTextProps}
-                ref={(e) => {
-                  formInputRef(e);
-                  inputRef.current = e;
-                }}
-                className="w-full bg-transparent text-zinc-50 placeholder-zinc-500 outline-none text-sm"
-                placeholder="Message..."
-                autoComplete="off"
-              />
-            ) : (
-              <div className="flex items-center gap-2 text-red-500 text-sm font-medium animate-pulse">
-                Recording... {Math.floor(recordingTime / 60)}:
-                {(recordingTime % 60).toString().padStart(2, "0")}
-              </div>
-            )}
+          {/* Text Input Row */}
+          <div className="flex items-end w-full gap-1">
+            {/* Emoji Trigger */}
+            <div className="relative shrink-0" ref={emojiRef}>
+              <button
+                type="button"
+                onClick={() => setIsEmojiOpen(!isEmojiOpen)}
+                className="p-2.5 text-zinc-50 hover:text-zinc-300 transition-colors"
+              >
+                <Smile className="w-6 h-6" />
+              </button>
+              {isEmojiOpen && (
+                <div className="absolute bottom-12 left-0 z-50 w-[300px] h-72 bg-zinc-900 border border-zinc-800 rounded-xl p-3 shadow-2xl flex flex-col">
+                  <div className="flex items-center justify-between mb-3 border-b border-zinc-800 pb-2">
+                    <span className="text-zinc-400 text-sm font-semibold">
+                      Emojis
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search emojis..."
+                    value={emojiSearch}
+                    onChange={(e) => setEmojiSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.preventDefault();
+                    }}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-zinc-50 focus:outline-none focus:border-zinc-700 mb-3"
+                  />
+                  <div className="flex-1 overflow-y-auto grid grid-cols-8 gap-2 scrollbar-thin content-start">
+                    {EMOJI_LIST.filter((e) =>
+                      e.name.includes(emojiSearch.toLowerCase()),
+                    ).map((emojiObj) => (
+                      <button
+                        key={emojiObj.char}
+                        type="button"
+                        onClick={() => insertEmoji(emojiObj.char)}
+                        className="text-xl p-1 hover:bg-zinc-800 rounded transition-colors flex items-center justify-center cursor-pointer"
+                      >
+                        {emojiObj.char}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 flex flex-col justify-center min-h-[44px] py-1">
+              {!isRecording ? (
+                <input
+                  {...messageTextProps}
+                  ref={(e) => {
+                    formInputRef(e);
+                    inputRef.current = e;
+                  }}
+                  className="w-full bg-transparent text-zinc-50 placeholder-zinc-500 outline-none text-sm"
+                  placeholder="Message..."
+                  autoComplete="off"
+                />
+              ) : (
+                <div className="flex items-center gap-2 text-red-500 text-sm font-medium animate-pulse py-1">
+                  Recording... {Math.floor(recordingTime / 60)}:
+                  {(recordingTime % 60).toString().padStart(2, "0")}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center shrink-0 pb-1 pr-1 gap-1">
+              {!messageText?.trim() && !selectedFile && !isRecording && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleStartRecording}
+                    className="p-1.5 text-zinc-50 hover:text-zinc-300 transition-colors"
+                  >
+                    <Mic className="w-6 h-6" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-1.5 text-zinc-50 hover:text-zinc-300 transition-colors"
+                  >
+                    <ImageIcon className="w-6 h-6" />
+                  </button>
+                  <input
+                    type="file"
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept="image/*,video/*,audio/*"
+                  />
+                </>
+              )}
+
+              {isRecording && (
+                <button
+                  type="button"
+                  onClick={handleStopRecording}
+                  className="p-1.5 text-red-500 hover:text-red-400 transition-colors"
+                >
+                  <StopCircle className="w-6 h-6" />
+                </button>
+              )}
+
+              {(!!messageText?.trim() || !!selectedFile) && (
+                <button
+                  type="submit"
+                  disabled={isSending}
+                  className="bg-[#3797F0] hover:bg-[#1877f2] text-white rounded-full p-2 w-9 h-9 flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+                >
+                  <SendHorizontal className="w-5 h-5 -ml-0.5 mt-0.5" />
+                </button>
+              )}
+            </div>
           </div>
-
-          {!messageText?.trim() && !selectedFile && !isRecording && (
-            <>
-              <button
-                type="button"
-                onClick={handleStartRecording}
-                className="p-2 text-zinc-50 hover:text-zinc-300 transition-colors"
-              >
-                <Mic className="w-6 h-6" />
-              </button>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="p-2 text-zinc-50 hover:text-zinc-300 transition-colors"
-              >
-                <ImageIcon className="w-6 h-6" />
-              </button>
-              <input
-                type="file"
-                className="hidden"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="image/*,video/*"
-              />
-            </>
-          )}
-
-          {isRecording && (
-            <button
-              type="button"
-              onClick={handleStopRecording}
-              className="p-2 text-red-500 hover:text-red-400 transition-colors"
-            >
-              <StopCircle className="w-6 h-6" />
-            </button>
-          )}
-
-          {(!!messageText?.trim() || !!selectedFile) && (
-            <button
-              type="submit"
-              disabled={isSending}
-              className="p-2 text-[#3797F0] hover:text-[#1877f2] font-semibold transition-colors disabled:opacity-50 text-sm mr-2"
-            >
-              Send
-            </button>
-          )}
         </form>
       </div>
 
-      {previewImageUrl && (
+      {previewMedia && previewMedia.type === "image" && (
         <div
           className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4 cursor-pointer"
-          onClick={() => setPreviewImageUrl(null)}
+          onClick={() => setPreviewMedia(null)}
         >
           <button
             type="button"
-            onClick={() => setPreviewImageUrl(null)}
-            className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-100 transition-colors p-2"
+            onClick={() => setPreviewMedia(null)}
+            className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-100 transition-colors p-2 z-50"
           >
             <X className="w-8 h-8" />
           </button>
           <img
-            src={previewImageUrl}
+            src={previewMedia.url}
             alt="Preview"
             className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl animate-fade-in"
           />
+        </div>
+      )}
+      {previewMedia && previewMedia.type === "video" && (
+        <ModalVideoPlayer
+          src={previewMedia.url}
+          onClose={() => setPreviewMedia(null)}
+        />
+      )}
+      {deleteMessageId !== null && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-[1px]">
+          <div className="bg-[#262626] w-[260px] md:w-[400px] rounded-xl overflow-hidden flex flex-col text-center shadow-2xl border border-zinc-800 animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-6 flex flex-col gap-2">
+              <h3 className="text-zinc-50 text-lg font-semibold leading-snug">
+                Unsend message?
+              </h3>
+              <p className="text-zinc-400 text-xs leading-relaxed px-2">
+                Unsending will remove the message for everyone. People may have already seen it.
+              </p>
+            </div>
+            
+            <div className="flex flex-col border-t border-zinc-800">
+              <button
+                onClick={handleConfirmDeleteMessage}
+                disabled={isDeletingMessage}
+                className="py-3 text-red-500 font-bold text-sm hover:bg-white/5 active:bg-white/10 transition-colors border-b border-zinc-800 disabled:opacity-50 cursor-pointer"
+              >
+                {isDeletingMessage ? "Unsending..." : "Unsend"}
+              </button>
+              <button
+                onClick={() => setDeleteMessageId(null)}
+                className="py-3 text-zinc-50 font-normal text-sm hover:bg-white/5 active:bg-white/10 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
