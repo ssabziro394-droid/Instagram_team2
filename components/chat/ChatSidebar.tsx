@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { SquarePen, ChevronDown, Trash2 } from "lucide-react";
+import { SquarePen, ChevronDown, Trash2, Search } from "lucide-react";
 import Link from "next/link";
 import {
   useGetChatsQuery,
@@ -213,6 +213,7 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
     "Messages",
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const token = useSelector((state: RootState) => state.auth.token);
   const currentUserId = getUserIdFromToken(token);
@@ -222,6 +223,60 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
 
   const chats = response?.data || [];
   const currentUsername = profileResponse?.data?.userName || "Loading...";
+
+  // Client-side synchronous search filtering
+  const filteredChats = chats.filter((chat: any) => {
+    const isCurrentUserSender = currentUserId
+      ? String(chat.sendUserId).toLowerCase() ===
+        String(currentUserId).toLowerCase()
+      : false;
+    const partnerName = isCurrentUserSender
+      ? chat.receiveUserName
+      : chat.sendUserName;
+    return (partnerName || "")
+      .toLowerCase()
+      .includes(searchQuery.trim().toLowerCase());
+  });
+
+  // Mock notes data matching the Instagram aesthetic
+  const mockNotes = [
+    {
+      id: "current-user",
+      userName: "Your note",
+      avatar: profileResponse?.data?.avatar || null,
+      noteText: "Первая заметка...",
+    },
+    {
+      id: "note-2",
+      userName: "parvizak",
+      avatar: chats.find((c: any) => {
+        const isSender = currentUserId
+          ? String(c.sendUserId).toLowerCase() === String(currentUserId).toLowerCase()
+          : false;
+        const pName = isSender ? c.receiveUserName : c.sendUserName;
+        return pName === "parvizak";
+      })?.receiveUserImage || chats[0]?.receiveUserImage || chats[0]?.sendUserImage || null,
+      noteText: "🎵 Breath of L...\nSina Bathaie...\n🌹",
+    },
+    {
+      id: "note-3",
+      userName: "narueq",
+      avatar: chats.find((c: any) => {
+        const isSender = currentUserId
+          ? String(c.sendUserId).toLowerCase() === String(currentUserId).toLowerCase()
+          : false;
+        const pName = isSender ? c.receiveUserName : c.sendUserName;
+        return pName === "narueq";
+      })?.receiveUserImage || chats[1]?.receiveUserImage || chats[1]?.sendUserImage || null,
+      noteText: "Working on it 💻",
+    },
+    {
+      id: "note-4",
+      userName: "Umed_Fozil",
+      avatar: null,
+      noteText: "Active now! 🔥",
+    },
+  ];
 
   return (
     <div
@@ -242,6 +297,52 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
         >
           <SquarePen className="w-6 h-6" />
         </button>
+      </div>
+
+      {/* Synchronous Search Bar */}
+      <div className="px-6 pb-4">
+        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-400 focus-within:border-zinc-700 transition-colors">
+          <Search className="w-4 h-4 text-zinc-500 shrink-0" />
+          <input
+            type="text"
+            placeholder="Search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bg-transparent text-zinc-50 placeholder-zinc-500 flex-1 outline-none text-sm"
+          />
+        </div>
+      </div>
+
+      {/* Notes Section */}
+      <div
+        className="px-6 py-2 overflow-x-auto flex gap-4 border-b border-zinc-900/60 select-none pb-4 mb-2"
+        style={{ msOverflowStyle: "none", scrollbarWidth: "none" }}
+      >
+        {mockNotes.map((note) => (
+          <div key={note.id} className="flex flex-col items-center shrink-0 w-20 relative pt-1 pb-2">
+            {/* Note bubble */}
+            <div className="relative bg-zinc-800 text-zinc-50 text-[10px] px-2 py-1.5 rounded-2xl mb-2 text-center w-[78px] min-h-[42px] flex items-center justify-center shadow-lg border border-zinc-700/30">
+              <span className="line-clamp-2 leading-tight font-medium whitespace-pre-line">
+                {note.noteText}
+              </span>
+              {/* Triangle Tail */}
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-800 rotate-45 border-r border-b border-zinc-700/30"></div>
+            </div>
+
+            {/* User Avatar */}
+            <div className="relative">
+              {renderAvatar(note.avatar, "w-14 h-14", note.userName)}
+              {note.id !== "current-user" && (
+                <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-zinc-950 rounded-full" />
+              )}
+            </div>
+
+            {/* Label */}
+            <span className="text-[11px] text-zinc-400 truncate w-full text-center mt-1 font-normal">
+              {note.userName}
+            </span>
+          </div>
+        ))}
       </div>
 
       {/* Tabs */}
@@ -284,8 +385,12 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
           <div className="p-4 text-zinc-500 text-sm text-center">
             No messages yet.
           </div>
+        ) : filteredChats.length === 0 ? (
+          <div className="p-4 text-zinc-500 text-sm text-center">
+            No chats match search query.
+          </div>
         ) : (
-          chats.map((chat: any) => (
+          filteredChats.map((chat: any) => (
             <SidebarChatItem
               key={chat.chatId}
               chat={chat}

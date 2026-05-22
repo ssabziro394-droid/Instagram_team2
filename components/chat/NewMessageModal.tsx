@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { X, Search } from "lucide-react";
 import {
   useCreateChatMutation,
@@ -95,12 +95,16 @@ export function NewMessageModal({
   onChatCreated,
 }: NewMessageModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [createChat, { isLoading }] = useCreateChatMutation();
+  const [selectedUsers, setSelectedUsers] = useState<{ id: string; username: string }[]>([]);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createChat] = useCreateChatMutation();
+
+  const NewMesModalRef = useRef<HTMLDivElement | null>(null);
 
   const token = useSelector((state: RootState) => state.auth.token);
   const currentUserId = getUserIdFromToken(token);
 
-  // Fetch existing chats to filter out users we already have a chat with
+  // Fetch existing chats to check if we already have a chat with the selected users
   const { data: chatsResponse } = useGetChatsQuery(undefined, {
     skip: !isOpen,
   });
@@ -116,54 +120,77 @@ export function NewMessageModal({
   );
   const apiUsers = usersResponse?.data || [];
 
-  // Collect existing chatted user IDs & usernames
-  const chattedUserIds = new Set<string>();
-  const chattedUsernames = new Set<string>();
-
-  existingChats.forEach((chat: any) => {
-    if (currentUserId) {
-      const isSender =
-        String(chat.sendUserId).toLowerCase() ===
-        String(currentUserId).toLowerCase();
-      const partnerId = isSender ? chat.receiveUserId : chat.sendUserId;
-      const partnerName = isSender ? chat.receiveUserName : chat.sendUserName;
-      if (partnerId) chattedUserIds.add(partnerId);
-      if (partnerName) chattedUsernames.add(partnerName);
-    } else {
-      if (chat.sendUserId) chattedUserIds.add(chat.sendUserId);
-      if (chat.receiveUserId) chattedUserIds.add(chat.receiveUserId);
-      if (chat.sendUserName) chattedUsernames.add(chat.sendUserName);
-      if (chat.receiveUserName) chattedUsernames.add(chat.receiveUserName);
-    }
-  });
-
-  // Filter users to show only those we don't have a chat-box with yet
+  // Filter out the current user from the search results
   const filteredContacts = apiUsers.filter((user: any) => {
-    const userId = user.id || user.userId;
-    const userName = user.userName || user.username;
-    return !chattedUserIds.has(userId) && !chattedUsernames.has(userName);
+    if (!currentUserId) return true;
+    return String(user.id).toLowerCase() !== String(currentUserId).toLowerCase();
   });
 
-  const handleCreateChat = async (userId: string) => {
-    try {
-      const response = await createChat({ receiverUserId: userId }).unwrap();
-      const newChatId = response.data;
-      if (newChatId) {
-        onChatCreated(newChatId);
-        onClose();
+  const toggleSelectUser = (user: { id: string; username: string }) => {
+    setSelectedUsers((prev) => {
+      const exists = prev.some((u) => u.id === user.id);
+      if (exists) {
+        return prev.filter((u) => u.id !== user.id);
+      } else {
+        return [...prev, user];
       }
+    });
+  };
+
+  const removeUser = (userId: string) => {
+    setSelectedUsers((prev) => prev.filter((u) => u.id !== userId));
+  };
+
+  const handleChatClick = async () => {
+    if (selectedUsers.length === 0 || isCreating) return;
+    setIsCreating(true);
+    let finalChatId: number | null = null;
+    try {
+      for (const user of selectedUsers) {
+        // Check if chat already exists
+        const existingChat = existingChats.find((chat: any) => {
+          if (!currentUserId) return false;
+          const isSender =
+            String(chat.sendUserId).toLowerCase() ===
+            String(currentUserId).toLowerCase();
+          const partnerId = isSender ? chat.receiveUserId : chat.sendUserId;
+          return String(partnerId).toLowerCase() === String(user.id).toLowerCase();
+        });
+
+        if (existingChat) {
+          finalChatId = existingChat.chatId;
+        } else {
+          const response = await createChat({ receiverUserId: user.id }).unwrap();
+          if (response.data) {
+            finalChatId = response.data;
+          }
+        }
+      }
+      if (finalChatId) {
+        onChatCreated(finalChatId);
+      }
+      setSelectedUsers([]);
+      onClose();
     } catch (error) {
-      console.error("Failed to create chat", error);
+      console.error("Failed to create chats:", error);
+    } finally {
+      setIsCreating(false);
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+    <div
+      ref={NewMesModalRef}
+      onClick={(e) => {
+        if (e.target === NewMesModalRef.current) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+    >
       <div className="w-full max-w-md rounded-xl bg-zinc-900 border border-zinc-800 shadow-2xl flex flex-col max-h-[80vh]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 p-4">
+        <div className="flex items-center justify-between border-b border-zinc-800 p-4 shrink-0">
           <div className="w-8"></div> {/* Spacer for centering */}
           <h2 className="text-zinc-50 font-semibold text-lg">New message</h2>
           <button
@@ -174,26 +201,41 @@ export function NewMessageModal({
           </button>
         </div>
 
-        {/* Search Input */}
-        <div className="flex items-center gap-3 border-b border-zinc-800 p-4">
-          <span className="text-zinc-50 font-medium whitespace-nowrap">
-            To:
+        {/* Selected Users & Search Input */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-zinc-800 p-4 max-h-[120px] overflow-y-auto shrink-0 no-scrollbar">
+          <span className="text-zinc-400 text-sm font-medium mr-1 select-none">
+            To whom:
           </span>
-          <div className="flex items-center flex-1 bg-zinc-950 rounded-lg px-3 py-1.5 border border-zinc-800 focus-within:border-zinc-700 transition-colors">
-            <Search className="w-4 h-4 text-zinc-400 mr-2" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-transparent text-zinc-50 placeholder-zinc-500 flex-1 outline-none text-sm"
-              autoFocus
-            />
-          </div>
+          {selectedUsers.map((user) => (
+            <div
+              key={user.id}
+              className="flex items-center gap-1.5 bg-[#3797F0]/15 hover:bg-[#3797F0]/25 text-[#3797F0] font-semibold px-2.5 py-1 rounded-full text-xs transition-colors border border-[#3797F0]/20"
+            >
+              <span>{user.username}</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeUser(user.id);
+                }}
+                className="text-[#3797F0] hover:text-[#1877f2] transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="bg-transparent text-zinc-50 placeholder-zinc-500 flex-1 outline-none text-sm min-w-[120px] py-1"
+            autoFocus
+          />
         </div>
 
         {/* Contacts List */}
-        <div className="flex-1 overflow-y-auto p-2 min-h-[300px]">
+        <div className="flex-1 overflow-y-auto p-2 min-h-[150px]">
           {isLoadingUsers ? (
             <div className="text-center text-zinc-500 py-8 text-sm">
               Loading users...
@@ -208,12 +250,13 @@ export function NewMessageModal({
               const username = contact.userName || contact.username;
               const fullName = contact.fullName;
               const avatarUrl = contact.avatar;
+              const isSelected = selectedUsers.some((u) => u.id === userId);
 
               return (
                 <div
                   key={userId}
                   className="flex items-center justify-between p-3 rounded-lg hover:bg-zinc-800/50 cursor-pointer transition-colors"
-                  onClick={() => handleCreateChat(userId)}
+                  onClick={() => toggleSelectUser({ id: userId, username })}
                 >
                   <div className="flex items-center gap-3">
                     {renderAvatar(avatarUrl, "w-12 h-12", username)}
@@ -225,15 +268,35 @@ export function NewMessageModal({
                     </div>
                   </div>
                   <button
-                    disabled={isLoading}
-                    className="w-6 h-6 rounded-full border-2 border-zinc-700 flex items-center justify-center pointer-events-none"
+                    type="button"
+                    className={clsx(
+                      "w-6 h-6 rounded-full flex items-center justify-center transition-colors border shrink-0",
+                      isSelected
+                        ? "bg-[#3797F0] border-transparent text-white"
+                        : "border-zinc-700 bg-transparent"
+                    )}
                   >
-                    {/* Empty circle for checklist style */}
+                    {isSelected && (
+                      <svg className="w-3.5 h-3.5 fill-none stroke-current stroke-[3px]" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
                   </button>
                 </div>
               );
             })
           )}
+        </div>
+
+        {/* Footer Chat Button */}
+        <div className="p-4 border-t border-zinc-800 shrink-0">
+          <button
+            onClick={handleChatClick}
+            disabled={selectedUsers.length === 0 || isCreating}
+            className="w-full bg-[#3797F0] hover:bg-[#1877f2] disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-xl text-sm transition-colors cursor-pointer text-center"
+          >
+            {isCreating ? "Creating chat..." : "Chat"}
+          </button>
         </div>
       </div>
     </div>

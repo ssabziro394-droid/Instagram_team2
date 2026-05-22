@@ -8,18 +8,19 @@ export const chatApi = baseApi
         { data: any[]; errors: any[]; statusCode: number },
         void
       >({
-        query: () => ({
-          url: "/Chat/get-chats",
-          method: "GET",
-        }),
+        query: () => "/Chat/get-chats",
+        // query: () => ({
+        //   url: "/Chat/get-chats",
+        // }),
         providesTags: ["Chats"],
       }),
       getChatById: builder.query<any, { chatId: number }>({
-        query: ({ chatId }) => ({
-          url: `/Chat/get-chat-by-id`,
-          method: "GET",
-          params: { chatId },
-        }),
+        query: ({ chatId }) => `/Chat/get-chat-by-id?chatId=${chatId}`,
+        // query: ({ chatId }) => ({
+        //   url: `/Chat/get-chat-by-id`,
+        //   method: "GET",
+        //   params: { chatId },
+        // }),
         providesTags: (result, error, arg) => [
           { type: "ChatMessages", id: arg.chatId },
         ],
@@ -29,9 +30,9 @@ export const chatApi = baseApi
         { receiverUserId: string }
       >({
         query: ({ receiverUserId }) => ({
-          url: `/Chat/create-chat`,
+          url: `/Chat/create-chat?receiverUserId=${receiverUserId}`,
           method: "POST",
-          params: { receiverUserId },
+          // params: { receiverUserId },
         }),
         invalidatesTags: ["Chats"],
       }),
@@ -61,9 +62,9 @@ export const chatApi = baseApi
         { messageId: number; chatId: number }
       >({
         query: ({ messageId }) => ({
-          url: `/Chat/delete-message`,
+          url: `/Chat/delete-message?massageId=${messageId}`,
           method: "DELETE",
-          params: { massageId: messageId }, // Matches 'massageId' query parameter typo in swagger
+          // params: { massageId: messageId }, // Matches 'massageId' query parameter typo in swagger
         }),
         invalidatesTags: (result, error, arg) => [
           { type: "ChatMessages", id: arg.chatId },
@@ -71,12 +72,14 @@ export const chatApi = baseApi
       }),
       deleteChat: builder.mutation<any, { chatId: number }>({
         query: ({ chatId }) => ({
-          url: `/Chat/delete-chat`,
+          url: `/Chat/delete-chat?chatId=${chatId}`,
           method: "DELETE",
-          params: { chatId },
+          // params: { chatId },
         }),
         invalidatesTags: ["Chats"],
       }),
+
+      // here
       getUsers: builder.query<
         { data: any[]; errors: any[]; statusCode: number },
         {

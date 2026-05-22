@@ -38,7 +38,7 @@ interface ChatAreaProps {
 }
 
 const chatSchema = z.object({
-  messageText: z.string().max(1000, "Message is too long").optional(),
+  messageText: z.string().max(100, "Message is too long").optional(),
   file: z.instanceof(File).optional(),
 });
 
@@ -283,6 +283,34 @@ const EMOJI_LIST = [
   { char: "🌍", name: "earth world globe" },
 ];
 
+const formatMessageText = (text: string, isOwn: boolean) => {
+  if (!text) return "";
+  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+  const parts = text.split(urlRegex);
+
+  return parts.map((part, index) => {
+    if (part.match(urlRegex)) {
+      const href = part.toLowerCase().startsWith("www.") ? `https://${part}` : part;
+      return (
+        <a
+          key={index}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={clsx(
+            "underline font-semibold transition-colors duration-150 break-all",
+            isOwn ? "text-blue-100 hover:text-white" : "text-sky-400 hover:text-sky-300"
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+};
+
 export function ChatArea({
   chatId,
   onNewMessageTrigger,
@@ -452,7 +480,9 @@ export function ChatArea({
         messageText: data.messageText?.trim() ? data.messageText : undefined,
         file: data.file,
       }).unwrap();
-      reset({ messageText: "", file: undefined });
+
+      reset();
+      // reset({ messageText: "", file: undefined });
     } catch (error) {
       console.error("Failed to send message", error);
     }
@@ -611,80 +641,119 @@ export function ChatArea({
                 29.02.2024, 23:12
               </span>
             </div>
-            {messages.toReversed().map((msg: any) => {
-              const isOwn = checkIsOwnMessage(msg);
-              const fileUrl = msg.file;
-              const hasText = !!msg.messageText;
-              const isAudio = fileUrl && isAudioFile(fileUrl);
-              const isImage = fileUrl && !isAudio;
+            {(() => {
+              const chronoMessages = messages.toReversed();
+              return chronoMessages.map((msg: any, index: number) => {
+                const isOwn = checkIsOwnMessage(msg);
+                const fileUrl = msg.file;
+                const hasText = !!msg.messageText;
+                const isAudio = fileUrl && isAudioFile(fileUrl);
+                const isImage = fileUrl && !isAudio;
 
-              return (
-                <div
-                  key={msg.messageId}
-                  className={clsx(
-                    "flex max-w-[75%] my-2 items-end group relative animate-fade-in",
-                    isOwn ? "self-end flex-row-reverse" : "self-start flex-row",
-                  )}
-                >
-                  {/* Sender Avatar for incoming */}
-                  {!isOwn && (
-                    <Link
-                      href={`/${msg.userName || partnerUsername}`}
-                      className="hover:opacity-90 transition-opacity shrink-0"
-                    >
-                      {renderAvatar(
-                        msg?.userImage || partnerImage,
-                        "w-8 h-8 rounded-full mb-1",
-                      )}
-                    </Link>
-                  )}
+                // Dynamic border logic based on sequence of messages from the same sender
+                let borderClass = "";
+                if (isOwn) {
+                  const isPrevOwn = index > 0 && checkIsOwnMessage(chronoMessages[index - 1]);
+                  const isNextOwn = index < chronoMessages.length - 1 && checkIsOwnMessage(chronoMessages[index + 1]);
+                  
+                  if (isPrevOwn && isNextOwn) {
+                    borderClass = "rounded-2xl rounded-tr-sm rounded-br-sm";
+                  } else if (isPrevOwn) {
+                    borderClass = "rounded-2xl rounded-tr-sm";
+                  } else if (isNextOwn) {
+                    borderClass = "rounded-2xl rounded-br-sm";
+                  } else {
+                    borderClass = "rounded-2xl rounded-br-sm";
+                  }
+                } else {
+                  const isPrevOther = index > 0 && !checkIsOwnMessage(chronoMessages[index - 1]);
+                  const isNextOther = index < chronoMessages.length - 1 && !checkIsOwnMessage(chronoMessages[index + 1]);
+                  
+                  if (isPrevOther && isNextOther) {
+                    borderClass = "rounded-2xl rounded-tl-sm rounded-bl-sm";
+                  } else if (isPrevOther) {
+                    borderClass = "rounded-2xl rounded-tl-sm";
+                  } else if (isNextOther) {
+                    borderClass = "rounded-2xl rounded-bl-sm";
+                  } else {
+                    borderClass = "rounded-2xl rounded-bl-sm";
+                  }
+                }
+
+                return (
                   <div
+                    key={msg.messageId}
                     className={clsx(
-                      "text-sm whitespace-pre-wrap break-words flex flex-col gap-1.5",
-                      isImage && !hasText
-                        ? "p-0 bg-transparent border-none shadow-none"
-                        : clsx(
-                            "px-4 py-2.5 rounded-2xl shadow-sm border",
-                            isOwn
-                              ? "bg-[#3797F0] text-white rounded-br-sm border-transparent"
-                              : "bg-zinc-800/85 text-zinc-50 rounded-bl-sm border-zinc-700/20",
-                          ),
+                      "flex max-w-[75%] my-[2px] items-end group relative animate-fade-in",
+                      isOwn ? "self-end flex-row-reverse" : "self-start flex-row",
                     )}
                   >
-                    {fileUrl && (
-                      <div className="rounded-xl overflow-hidden max-w-full">
-                        {isAudio ? (
-                          <AudioPlayer
-                            src={resolveFileUrl(fileUrl)}
-                            isOwn={isOwn}
-                          />
-                        ) : (
-                          <div className="relative group/img max-w-full overflow-hidden rounded-2xl border border-zinc-800/50 shadow-md">
-                            <img
+                    {/* Sender Avatar for incoming */}
+                    {!isOwn && (
+                      <Link
+                        href={`/${msg.userName || partnerUsername}`}
+                        className="hover:opacity-90 transition-opacity shrink-0 mr-2"
+                      >
+                        {(() => {
+                          const isNextOther = index < chronoMessages.length - 1 && !checkIsOwnMessage(chronoMessages[index + 1]);
+                          if (isNextOther) {
+                            return <div className="w-8 h-8" />;
+                          }
+                          return renderAvatar(
+                            msg?.userImage || partnerImage,
+                            "w-8 h-8 rounded-full mb-1",
+                          );
+                        })()}
+                      </Link>
+                    )}
+                    <div
+                      className={clsx(
+                        "text-sm whitespace-pre-wrap break-words flex flex-col gap-1.5",
+                        isImage && !hasText
+                          ? "p-0 bg-transparent border-none shadow-none"
+                          : clsx(
+                              "px-4 py-2.5 shadow-sm border",
+                              borderClass,
+                              isOwn
+                                ? "bg-[#3797F0] text-white border-transparent"
+                                : "bg-zinc-800/85 text-zinc-50 border-zinc-700/20",
+                            ),
+                      )}
+                    >
+                      {fileUrl && (
+                        <div className="rounded-xl overflow-hidden max-w-full">
+                          {isAudio ? (
+                            <AudioPlayer
                               src={resolveFileUrl(fileUrl)}
-                              alt="attachment"
-                              className="max-w-full h-auto object-cover max-h-72 cursor-pointer hover:scale-[1.02] transition-transform duration-200"
-                              onClick={() =>
-                                setPreviewImageUrl(resolveFileUrl(fileUrl))
-                              }
+                              isOwn={isOwn}
                             />
-                            {/* Time overlay for pure images */}
-                            {!hasText && (
-                              <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-full text-[9px] text-zinc-300 font-medium select-none shadow-sm">
-                                {msg.sendMassageDate
-                                  ? msg.sendMassageDate.slice(11, 16)
-                                  : ""}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {msg.messageText && (
-                      <div className="text-[15px] leading-relaxed">
-                        {msg.messageText}
-                      </div>
-                    )}
+                          ) : (
+                            <div className="relative group/img max-w-full overflow-hidden rounded-2xl border border-zinc-800/50 shadow-md">
+                              <img
+                                src={resolveFileUrl(fileUrl)}
+                                alt="attachment"
+                                className="max-w-full h-auto object-cover max-h-72 cursor-pointer hover:scale-[1.02] transition-transform duration-200"
+                                onClick={() =>
+                                  setPreviewImageUrl(resolveFileUrl(fileUrl))
+                                }
+                              />
+                              {/* Time overlay for pure images */}
+                              {!hasText && (
+                                <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-full text-[9px] text-zinc-300 font-medium select-none shadow-sm">
+                                  {msg.sendMassageDate
+                                    ? msg.sendMassageDate.slice(11, 16)
+                                    : ""}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {msg.messageText && (
+                        <div className="text-[15px] leading-relaxed">
+                          {formatMessageText(msg.messageText, isOwn)}
+                        </div>
+                      )}
                     {/* Only render regular sub-timestamp if it's NOT an image-only message */}
                     {!(isImage && !hasText) && (
                       <sub
@@ -709,7 +778,8 @@ export function ChatArea({
                   </button>
                 </div>
               );
-            })}
+            });
+          })()}
             <div ref={messagesEndRef} />
           </>
         )}
