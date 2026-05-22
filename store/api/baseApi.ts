@@ -1,16 +1,21 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-// This is a placeholder base API using MockAPI or similar backend
+// Base API using Swagger API backend
 export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({ 
-    baseUrl: process.env.NEXT_PUBLIC_API_URL ,
+    baseUrl: process.env.NEXT_PUBLIC_API_URL,
     prepareHeaders: (headers) => {
-      // Logic to add JWT token if exists
-      // const token = localStorage.getItem('token');
-      // if (token) {
-      //   headers.set('authorization', `Bearer ${token}`);
-      // }
+      // Retrieve token dynamically from localStorage if available in browser
+      if (typeof window !== "undefined") {
+        const token = 
+          localStorage.getItem("token") || 
+          localStorage.getItem("accessToken") || 
+          localStorage.getItem("access_token");
+        if (token) {
+          headers.set("authorization", `Bearer ${token}`);
+        }
+      }
       return headers;
     },
   }),
