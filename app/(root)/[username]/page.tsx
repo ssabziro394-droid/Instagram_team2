@@ -1,39 +1,89 @@
-import React from "react";
+"use client";
 
-export default function ProfilePage({ params }: { params: { username: string } }) {
-  // Extracting username dynamically from router
+import { useCallback, useState } from "react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import EditProfileModal from "@/components/profile/EditProfileModal";
+import ProfileGrid from "@/components/profile/ProfileGrid";
+import ProfileHeader from "@/components/profile/ProfileHeader";
+import {
+  useGetMyProfileQuery,
+  useUpdateUserProfileMutation,
+} from "@/store/api/profileApi";
+import type { UpdateUserProfileRequest } from "@/types/profile";
+
+export default function ProfilePage() {
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const profileQuery = useGetMyProfileQuery();
+  const [updateUserProfile, updateState] = useUpdateUserProfileMutation();
+
+  const handleRetry = useCallback(() => {
+    void profileQuery.refetch();
+  }, [profileQuery]);
+
+  const handleSaveProfile = useCallback(
+    async (values: UpdateUserProfileRequest) => {
+      setActionError("");
+
+      try {
+        await updateUserProfile(values).unwrap();
+        setIsEditOpen(false);
+        void profileQuery.refetch();
+      } catch {
+        setActionError("Не удалось сохранить изменения профиля.");
+      }
+    },
+    [profileQuery, updateUserProfile]
+  );
+
+  if (profileQuery.isError) {
+    return (
+      <div className="mx-auto flex min-h-[70vh] max-w-2xl flex-col items-center justify-center gap-4 px-4 text-center">
+        <AlertCircle className="h-10 w-10 text-zinc-500" />
+        <div>
+          <h1 className="text-xl font-semibold text-white">
+            Не удалось загрузить профиль
+          </h1>
+          <p className="mt-2 text-sm text-zinc-500">
+            Данные профиля временно недоступны.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleRetry}
+          className="inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Попробовать снова
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 flex flex-col gap-8">
-      {/* Profile Header */}
-      <div className="flex gap-8 items-center md:items-start border-b border-zinc-800 pb-8">
-        <div className="w-20 h-20 md:w-36 md:h-36 rounded-full bg-zinc-800 flex items-center justify-center text-4xl text-zinc-600">
-          👤
+    <div className="min-h-full bg-black text-white">
+      <ProfileHeader
+        profile={profileQuery.data ?? null}
+        isLoading={profileQuery.isLoading || profileQuery.isFetching}
+        onEdit={() => setIsEditOpen(true)}
+      />
+
+      {actionError && (
+        <div className="mx-auto max-w-4xl px-4 pt-4 text-sm text-red-400 sm:px-8">
+          {actionError}
         </div>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap gap-4 items-center">
-            <h1 className="text-xl font-semibold">Имя Пользователя</h1>
-            <button className="bg-zinc-800 hover:bg-zinc-700 text-white font-medium rounded-lg px-4 py-1.5 text-sm transition">
-              Редактировать профиль
-            </button>
-          </div>
-          <div className="flex gap-6 text-sm">
-            <span><strong>0</strong> публикаций</span>
-            <span><strong>0</strong> подписчиков</span>
-            <span><strong>0</strong> подписок</span>
-          </div>
-          <div>
-            <span className="font-semibold text-sm">Полное имя</span>
-            <p className="text-sm text-zinc-400">Биография пользователя...</p>
-          </div>
-        </div>
-      </div>
-      
-      {/* Profile feed grid */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="aspect-square bg-zinc-950 border border-zinc-800 rounded-lg flex items-center justify-center col-span-3 h-48">
-          <span className="text-zinc-500 text-sm">Публикаций пока нет</span>
-        </div>
-      </div>
+      )}
+
+      <ProfileGrid posts={profileQuery.data?.posts ?? []} />
+
+      {isEditOpen && profileQuery.data && (
+        <EditProfileModal
+          profile={profileQuery.data}
+          isSaving={updateState.isLoading}
+          onClose={() => setIsEditOpen(false)}
+          onSave={handleSaveProfile}
+        />
+      )}
     </div>
   );
 }
