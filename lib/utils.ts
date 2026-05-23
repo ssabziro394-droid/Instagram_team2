@@ -40,7 +40,7 @@ export function formatRelativeTime(dateString: string | null | undefined): strin
   }
 }
 
-export function decodeJWT(token: string | null): { sid?: string; name?: string; email?: string } | null {
+export function decodeJWT(token: string | null): Record<string, any> | null {
   if (!token) return null;
   try {
     const base64Url = token.split(".")[1];
@@ -58,4 +58,27 @@ export function decodeJWT(token: string | null): { sid?: string; name?: string; 
   }
 }
 
-
+/**
+ * Decode username from JWT token stored in localStorage
+ */
+export function getUsernameFromToken(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const token = localStorage.getItem("token");
+  if (!token) {
+    return null;
+  }
+  const payload = decodeJWT(token);
+  if (!payload) return null;
+  
+  return (
+    payload.username ??
+    payload.userName ??
+    payload.name ??
+    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] ??
+    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] ??
+    payload.sub ??
+    null
+  );
+}

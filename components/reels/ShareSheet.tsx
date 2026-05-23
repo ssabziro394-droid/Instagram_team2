@@ -3,7 +3,9 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check } from "lucide-react";
-import { useFetchReelsUsersQuery } from "@/store/api/reelsApi";
+import { useGetUsersQuery } from "@/store/api/searchApi";
+import { getFileUrl } from "@/lib/file";
+import type { SearchUser } from "@/types/search";
 import ShareUserGrid from "./ShareUserGrid";
 import ShareActionBar from "./ShareActionBar";
 
@@ -20,6 +22,28 @@ interface ShareSheetProps {
   videoUrl?: string;
 }
 
+function toShareUser(user: SearchUser, index: number): User {
+  const id = user.id ?? user.userId ?? `user-${index}`;
+  const username =
+    user.username ??
+    user.userName ??
+    user.fullName ??
+    user.name ??
+    `user_${index}`;
+  const avatar =
+    user.avatarUrl ??
+    user.imageUrl ??
+    user.userImage ??
+    user.image ??
+    user.avatar;
+
+  return {
+    id: String(id),
+    username,
+    avatarUrl: getFileUrl(avatar, "avatar"),
+  };
+}
+
 export default function ShareSheet({
   isOpen,
   onClose,
@@ -32,7 +56,7 @@ export default function ShareSheet({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Fetch users from API (safe Swagger integration inside Reels module)
-  const { data: apiUsers, isLoading } = useFetchReelsUsersQuery(
+  const { data: apiUsers, isLoading } = useGetUsersQuery(
     { pageNumber: 1, pageSize: 30 },
     { skip: !isOpen }
   );
@@ -143,6 +167,7 @@ export default function ShareSheet({
     showToast("Создание группы...");
   };
 
+  const users = (apiUsers ?? []).map(toShareUser);
   const hasSelected = selectedUsers.length > 0;
 
   return (
@@ -185,7 +210,7 @@ export default function ShareSheet({
 
             {/* User Search & Grid section */}
             <ShareUserGrid
-              users={apiUsers || []}
+              users={users}
               isLoading={isLoading}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}

@@ -10,10 +10,10 @@ import {
   useDeleteStoryMutation, 
   useLikeStoryMutation, 
   useAddStoryViewMutation,
-  useGetUsersQuery,
   UserStories,
   StoryItem
 } from "@/store/api/feedApi";
+import { useGetUsersQuery } from "@/store/api/searchApi";
 import { getFileUrl } from "@/lib/file";
 import { decodeJWT } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,7 +36,7 @@ export default function StoriesBar() {
   });
 
   const { data: usersResponse } = useGetUsersQuery(undefined, { skip: !token });
-  const allUsers = usersResponse?.data || [];
+  const allUsers = usersResponse || [];
 
   const refetch = useCallback(() => {
     refetchStories();

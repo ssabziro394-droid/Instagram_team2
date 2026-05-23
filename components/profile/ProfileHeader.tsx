@@ -1,7 +1,15 @@
 "use client";
 
+import { useState } from "react";
+import { useDispatch } from "react-redux";
+import { logout } from "@/store/slices/authSlice";
 import { Archive, Settings } from "lucide-react";
 import type { UserProfile } from "@/types/profile";
+import {
+  useProfileFollowUserMutation,
+  useProfileUnfollowUserMutation,
+  useGetIsFollowUserProfileByIdQuery,
+} from "@/store/api/profileApi";
 
 type ProfileHeaderProps = {
   profile: UserProfile | null;
@@ -24,14 +32,31 @@ function getBio(profile: UserProfile) {
   return profile.bio || profile.about || "";
 }
 
+function normalizeAvatarUrl(value?: string) {
+  if (!value) {
+    return "";
+  }
+
+  if (/^(https?:|blob:|data:)/i.test(value)) {
+    return value;
+  }
+
+  const cleanValue = value.replace(/^\/+/, "");
+  if (cleanValue.startsWith("images/")) {
+    return `https://instagram-api.softclub.tj/${cleanValue}`;
+  }
+
+  return `https://instagram-api.softclub.tj/images/${cleanValue}`;
+}
+
 function getAvatarUrl(profile: UserProfile) {
-  return (
+  const avatar =
     profile.avatar ||
     profile.image ||
     profile.avatarUrl ||
     profile.imageUrl ||
-    ""
-  );
+    "";
+  return normalizeAvatarUrl(avatar);
 }
 
 function getPostsCount(profile: UserProfile) {
@@ -79,6 +104,34 @@ export default function ProfileHeader({
   isLoading = false,
   onEdit,
 }: ProfileHeaderProps) {
+  const [showSettings, setShowSettings] = useState(false);
+  const dispatch = useDispatch();
+  const [followUser, { isLoading: isFollowingLoading }] = useProfileFollowUserMutation();
+  const [unfollowUser, { isLoading: isUnfollowingLoading }] = useProfileUnfollowUserMutation();
+
+  // Compute target user ID before any early returns (React rules of hooks)
+  const isOwnProfile = !!profile?.isMyProfile;
+  const targetUserId = isOwnProfile ? "" : String(profile?.id ?? profile?.userId ?? "");
+
+  // Fetch real follow status from API — runs when targetUserId is known
+  const { data: isFollowingFromApi, isLoading: isFollowCheckLoading } =
+    useGetIsFollowUserProfileByIdQuery(targetUserId, {
+      skip: !targetUserId || isOwnProfile,
+    });
+
+  // Local optimistic state: undefined = not yet overridden
+  const [localIsFollowing, setLocalIsFollowing] = useState<boolean | undefined>(undefined);
+
+  // Final follow value: local optimistic → API → false
+  const isFollowing = localIsFollowing !== undefined
+    ? localIsFollowing
+    : (isFollowingFromApi ?? profile?.isFollowing ?? false);
+
+  const handleLogout = () => {
+    dispatch(logout());
+    setShowSettings(false);
+  };
+
   if (isLoading) {
     return <ProfileHeaderSkeleton />;
   }
@@ -86,6 +139,31 @@ export default function ProfileHeader({
   if (!profile) {
     return null;
   }
+
+  const handleFollow = async () => {
+    const userId = profile.id ?? profile.userId;
+    if (!userId) return;
+    if (isFollowCheckLoading) return; // Wait for API check
+
+    const currentlyFollowing = isFollowing;
+
+    // Optimistic update — flip immediately
+    setLocalIsFollowing(!currentlyFollowing);
+
+    try {
+      if (currentlyFollowing) {
+        await unfollowUser({ followingUserId: userId }).unwrap();
+      } else {
+        await followUser({ followingUserId: userId }).unwrap();
+      }
+      // After success — reset to let API re-fetch give the truth
+      setLocalIsFollowing(undefined);
+    } catch (error) {
+      // Revert on error
+      setLocalIsFollowing(currentlyFollowing);
+      console.error("Failed to follow/unfollow user:", error);
+    }
+  };
 
   const username = getUsername(profile);
   const displayName = getDisplayName(profile);
@@ -109,34 +187,55 @@ export default function ProfileHeader({
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-5">
-          <div className="flex min-w-0 items-center justify-center gap-3 sm:justify-start">
-            <h1 className="min-w-0 truncate text-2xl font-normal text-ig-fg sm:text-3xl">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+            <h1 className="min-w-0 truncate text-xl font-normal text-ig-fg sm:text-2xl">
               {username}
             </h1>
-            <button
-              type="button"
-              className="rounded-full p-2 text-ig-fg transition hover:bg-zinc-900 hover:text-white"
-              aria-label="Настройки профиля"
-            >
-              <Settings className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 sm:max-w-lg">
-            <button
-              type="button"
-              onClick={onEdit}
-              className="inline-flex h-9 items-center justify-center rounded-lg bg-ig-sidebar-hover px-4 text-sm font-semibold text-ig-fg transition hover:bg-zinc-700"
-            >
-              Редактировать профиль
-            </button>
-            <button
-              type="button"
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-ig-sidebar-hover px-4 text-sm font-semibold text-ig-fg transition hover:bg-zinc-700"
-            >
-              <Archive className="h-4 w-4" />
-              Посмотреть архив
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {profile.isMyProfile ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={onEdit}
+                    className="inline-flex h-8 items-center justify-center rounded-lg bg-ig-sidebar-hover hover:bg-ig-hover px-4 text-sm font-semibold text-ig-fg transition duration-200"
+                  >
+                    Редактировать профиль
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex h-8 items-center justify-center gap-2 rounded-lg bg-ig-sidebar-hover hover:bg-ig-hover px-4 text-sm font-semibold text-ig-fg transition duration-200"
+                  >
+                    <Archive className="h-4 w-4" />
+                    Посмотреть архив
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSettings(true)}
+                    className="rounded-full p-2 text-ig-fg transition hover:bg-ig-hover"
+                    aria-label="Настройки профиля"
+                  >
+                    <Settings className="h-5 w-5" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleFollow}
+                  disabled={isFollowingLoading || isUnfollowingLoading || isFollowCheckLoading}
+                  className={`inline-flex h-8 items-center justify-center rounded-lg px-6 text-sm font-semibold transition disabled:opacity-50 ${
+                    isFollowing
+                      ? "bg-ig-sidebar-hover hover:bg-ig-hover text-ig-fg"
+                      : "bg-sky-500 hover:bg-sky-400 text-white"
+                  }`}
+                >
+                  {isFollowCheckLoading
+                    ? "..."
+                    : isFollowing
+                    ? "Отписаться"
+                    : "Подписаться"}
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2 border-y border-ig-border py-3 text-center text-sm sm:flex sm:border-y-0 sm:py-0 sm:text-left">
@@ -175,6 +274,74 @@ export default function ProfileHeader({
           </div>
         </div>
       </div>
+
+      {/* Settings Options Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 text-center shadow-2xl">
+            <button
+              type="button"
+              className="w-full border-b border-zinc-900 py-3.5 text-sm text-white hover:bg-zinc-900 transition"
+            >
+              Приложения и сайты
+            </button>
+            <button
+              type="button"
+              className="w-full border-b border-zinc-900 py-3.5 text-sm text-white hover:bg-zinc-900 transition"
+            >
+              QR-код
+            </button>
+            <button
+              type="button"
+              className="w-full border-b border-zinc-900 py-3.5 text-sm text-white hover:bg-zinc-900 transition"
+            >
+              Уведомления
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowSettings(false);
+                onEdit();
+              }}
+              className="w-full border-b border-zinc-900 py-3.5 text-sm text-white hover:bg-zinc-900 transition font-semibold"
+            >
+              Настройки и конфиденциальность
+            </button>
+            <button
+              type="button"
+              className="w-full border-b border-zinc-900 py-3.5 text-sm text-white hover:bg-zinc-900 transition"
+            >
+              Meta Verified
+            </button>
+            <button
+              type="button"
+              className="w-full border-b border-zinc-900 py-3.5 text-sm text-white hover:bg-zinc-900 transition"
+            >
+              Родительский контроль
+            </button>
+            <button
+              type="button"
+              className="w-full border-b border-zinc-900 py-3.5 text-sm text-white hover:bg-zinc-900 transition"
+            >
+              Входы в аккаунт
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full border-b border-zinc-900 py-3.5 text-sm font-bold text-red-500 hover:bg-zinc-900 transition"
+            >
+              Выйти
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSettings(false)}
+              className="w-full py-3.5 text-sm text-zinc-400 hover:bg-zinc-900 transition"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

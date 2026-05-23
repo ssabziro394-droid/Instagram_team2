@@ -5,12 +5,12 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { decodeJWT } from "@/lib/utils";
 import { getFileUrl } from "@/lib/file";
+import { useGetUsersQuery } from "@/store/api/searchApi";
 import { 
-  useGetUsersQuery, 
-  useGetSubscriptionsQuery, 
-  useFollowUserMutation,
-  useUnfollowUserMutation
-} from "@/store/api/feedApi";
+  useProfileGetSubscriptionsQuery,
+  useProfileFollowUserMutation,
+  useProfileUnfollowUserMutation
+} from "@/store/api/profileApi";
 import { Loader2, ChevronDown } from "lucide-react";
 
 export default function Suggestions() {
@@ -28,18 +28,18 @@ export default function Suggestions() {
   }, [token]);
 
   const { data: usersResponse, isLoading: isLoadingUsers } = useGetUsersQuery(undefined, { skip: !currentUser });
-  const { data: subscriptionsResponse } = useGetSubscriptionsQuery(currentUser?.sid || "", { skip: !currentUser });
-  const [followUser] = useFollowUserMutation();
-  const [unfollowUser] = useUnfollowUserMutation();
+  const { data: subscriptionsResponse } = useProfileGetSubscriptionsQuery(currentUser?.sid || "", { skip: !currentUser });
+  const [followUser] = useProfileFollowUserMutation();
+  const [unfollowUser] = useProfileUnfollowUserMutation();
 
   const [loadingFollowIds, setLoadingFollowIds] = useState<Record<string, boolean>>({});
   const [initialSuggestions, setInitialSuggestions] = useState<any[]>([]);
   const [showAll, setShowAll] = useState(false);
 
-  const allUsers = usersResponse?.data || [];
+  const allUsers = usersResponse || [];
   
   // Extract IDs of users we are following from the subscriptions response
-  const followingIds = subscriptionsResponse?.data?.map((u: any) => {
+  const followingIds = subscriptionsResponse?.map((u: any) => {
     if (typeof u === 'string') return u;
     // API might return different property names for the followed user's ID
     return u.followingUserId || u.subscriberId || u.userId || u.id;
@@ -65,11 +65,9 @@ export default function Suggestions() {
     setLoadingFollowIds(prev => ({ ...prev, [userId]: true }));
     try {
       if (isCurrentlyFollowing) {
-        await unfollowUser(userId).unwrap();
-        // Remove from initialSuggestions if they unfollow so it functions cleanly?
-        // Actually, Instagram keeps them but changes state. The user wants them to disappear ON REFRESH, which happens naturally.
+        await unfollowUser({ followingUserId: userId }).unwrap();
       } else {
-        await followUser(userId).unwrap();
+        await followUser({ followingUserId: userId }).unwrap();
       }
     } catch (error: any) {
       console.error("Failed to toggle follow status:", error?.data?.errors?.[0] || error?.status || JSON.stringify(error));
