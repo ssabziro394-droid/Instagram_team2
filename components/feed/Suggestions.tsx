@@ -11,7 +11,7 @@ import {
   useFollowUserMutation,
   useUnfollowUserMutation
 } from "@/store/api/feedApi";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronDown } from "lucide-react";
 
 export default function Suggestions() {
   const token = useSelector((state: RootState) => state.auth.token);
@@ -34,6 +34,7 @@ export default function Suggestions() {
 
   const [loadingFollowIds, setLoadingFollowIds] = useState<Record<string, boolean>>({});
   const [initialSuggestions, setInitialSuggestions] = useState<any[]>([]);
+  const [showAll, setShowAll] = useState(false);
 
   const allUsers = usersResponse?.data || [];
   
@@ -110,8 +111,11 @@ export default function Suggestions() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-zinc-400 font-semibold text-sm">Suggestions for you</span>
-        <button className="text-zinc-200 text-xs font-semibold hover:text-zinc-400 transition-colors">
-          See All
+        <button 
+          onClick={() => setShowAll(!showAll)}
+          className="text-zinc-200 text-xs font-semibold hover:text-zinc-400 transition-colors cursor-pointer"
+        >
+          {showAll ? "Show Less" : "See All"}
         </button>
       </div>
 
@@ -121,8 +125,8 @@ export default function Suggestions() {
           <div className="flex items-center justify-center py-4">
             <Loader2 className="h-5 w-5 text-zinc-500 animate-spin" />
           </div>
-        ) : initialSuggestions.length > 0 ? (
-          initialSuggestions.map((user: any) => {
+        ) : (showAll ? allUsers.filter((u: any) => (u.userId || u.id) !== currentUser?.sid) : initialSuggestions).length > 0 ? (
+          (showAll ? allUsers.filter((u: any) => (u.userId || u.id) !== currentUser?.sid) : initialSuggestions).map((user: any) => {
             const uId = user.userId || user.id;
             const isLoading = loadingFollowIds[uId];
             const isFollowing = followingIds.includes(uId);
@@ -152,13 +156,18 @@ export default function Suggestions() {
                 <button 
                   onClick={() => handleFollowToggle(uId, isFollowing)}
                   disabled={isLoading}
-                  className={`text-xs font-semibold transition-colors disabled:opacity-50 ${
+                  className={`text-xs font-semibold transition-colors disabled:opacity-50 flex items-center ${
                     isFollowing 
-                      ? "text-zinc-400 hover:text-red-500" 
+                      ? "text-zinc-500 hover:text-zinc-400" 
                       : "text-sky-500 hover:text-sky-400"
                   }`}
                 >
-                  {isLoading ? "..." : (isFollowing ? "Unfollow" : "Follow")}
+                  {isLoading ? "..." : (isFollowing ? (
+                    <>
+                      Following
+                      <ChevronDown className="w-3.5 h-3.5 ml-0.5" />
+                    </>
+                  ) : "Follow")}
                 </button>
               </div>
             );
