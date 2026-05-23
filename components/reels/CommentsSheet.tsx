@@ -40,6 +40,7 @@ export default function CommentsSheet({
   
   const commentsEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Initialize and sync comments
   useEffect(() => {
@@ -121,13 +122,18 @@ export default function CommentsSheet({
 
     // Scroll to bottom after adding comment
     setTimeout(() => {
-      commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({
+          top: scrollContainerRef.current.scrollHeight,
+          behavior: "smooth"
+        });
+      }
     }, 100);
   };
 
   const handleEmojiClick = (emoji: string) => {
     setNewComment(prev => prev + emoji);
-    inputRef.current?.focus();
+    inputRef.current?.focus({ preventScroll: true });
   };
 
   const handleLikeComment = (commentId: string, replyId?: string) => {
@@ -176,7 +182,7 @@ export default function CommentsSheet({
     setReplyingTo({ commentId, username });
     setNewComment(`@${username} `);
     setTimeout(() => {
-      inputRef.current?.focus();
+      inputRef.current?.focus({ preventScroll: true });
     }, 50);
   };
 
@@ -199,7 +205,7 @@ export default function CommentsSheet({
             animate={{ opacity: 0.6 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black z-40 cursor-pointer transition-opacity"
+            className="fixed inset-0 bg-ig-bg z-40 cursor-pointer transition-opacity"
           />
 
           {/* Instagram Style bottom sheet drawer */}
@@ -208,7 +214,7 @@ export default function CommentsSheet({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 260 }}
-            className="absolute bottom-0 left-0 right-0 h-[65vh] rounded-t-[24px] bg-[#1c1c1e] border-t border-zinc-800/60 z-50 flex flex-col shadow-2xl overflow-hidden text-white"
+            className="fixed bottom-0 left-0 right-0 md:left-1/2 md:-translate-x-1/2 md:w-[460px] h-[65vh] rounded-t-[24px] bg-ig-card-bg border-t border-ig-border z-50 flex flex-col shadow-2xl overflow-hidden text-ig-fg"
           >
             {/* Visual Drag Handle Indicator */}
             <div className="w-full flex justify-center py-3.5 cursor-pointer select-none" onClick={onClose}>
@@ -216,21 +222,21 @@ export default function CommentsSheet({
             </div>
 
             {/* Comments Header */}
-            <div className="flex items-center justify-between px-4 pb-3 border-b border-[#2c2c2e]">
+            <div className="flex items-center justify-between px-4 pb-3 border-b border-ig-border">
               <div className="w-6" /> {/* spacer */}
               <h3 className="font-bold text-[15px] tracking-wide select-none">Comments</h3>
               <button
                 onClick={onClose}
-                className="p-1 rounded-full hover:bg-[#2c2c2e] text-zinc-400 hover:text-white transition-colors"
+                className="p-1 rounded-full hover:bg-[#2c2c2e] text-ig-secondary hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Comments List Area */}
-            <div className="flex-1 overflow-y-auto px-4 py-2 space-y-4 scrollbar-none pb-4">
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-2 space-y-4 scrollbar-none pb-4">
               {localComments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+                <div className="flex flex-col items-center justify-center py-20 text-ig-secondary">
                   <p className="text-sm font-semibold">No comments yet</p>
                   <p className="text-xs text-zinc-600 mt-1">Be the first to share your thoughts!</p>
                 </div>
@@ -250,31 +256,31 @@ export default function CommentsSheet({
                         <img
                           src={comment.avatarUrl}
                           alt={comment.username}
-                          className="w-8 h-8 rounded-full object-cover border border-zinc-800 select-none"
+                          className="w-8 h-8 rounded-full object-cover border border-ig-border select-none"
                         />
 
                         {/* Comment Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-bold text-[13px] text-zinc-150 hover:underline cursor-pointer">
+                            <span className="font-bold text-[13px] text-ig-fg hover:underline cursor-pointer">
                               {comment.username}
                             </span>
-                            <span className="text-[11px] text-zinc-500 font-medium">
+                            <span className="text-[11px] text-ig-secondary font-medium">
                               {comment.timestamp}
                             </span>
                             {comment.isAuthor && (
-                              <span className="text-[10px] text-zinc-400 bg-[#2c2c2e] px-1.5 py-0.5 rounded-md font-semibold select-none">
+                              <span className="text-[10px] text-ig-secondary bg-ig-sidebar-hover px-1.5 py-0.5 rounded-md font-semibold select-none">
                                 • Автор
                               </span>
                             )}
                           </div>
                           
-                          <p className="text-zinc-200 text-[13.5px] leading-relaxed mt-1 whitespace-pre-wrap break-words pr-2">
+                          <p className="text-ig-fg text-[13.5px] leading-relaxed mt-1 whitespace-pre-wrap break-words pr-2">
                             {isTranslated ? TRANSLATIONS[comment.id] : comment.text}
                           </p>
                           
                           {/* Actions Bar */}
-                          <div className="flex items-center gap-4 mt-2 text-xs font-semibold text-zinc-500">
+                          <div className="flex items-center gap-4 mt-2 text-xs font-semibold text-ig-secondary">
                             <button 
                               onClick={() => handleReplyClick(comment.id, comment.username)}
                               className="hover:text-zinc-400 transition-colors cursor-pointer"
@@ -300,7 +306,7 @@ export default function CommentsSheet({
                             className={`p-1.5 transition-all duration-100 ${
                               comment.isLiked 
                                 ? "text-red-500 hover:text-red-600 scale-110 active:scale-90" 
-                                : "text-zinc-500 hover:text-zinc-400 active:scale-95"
+                                : "text-ig-secondary hover:text-zinc-400 active:scale-95"
                             }`}
                           >
                             <Heart 
@@ -308,7 +314,7 @@ export default function CommentsSheet({
                             />
                           </button>
                           {comment.likesCount > 0 && (
-                            <span className="text-[10px] text-zinc-500 font-semibold mt-0.5">
+                            <span className="text-[10px] text-ig-secondary font-semibold mt-0.5">
                               {comment.likesCount}
                             </span>
                           )}
@@ -338,19 +344,19 @@ export default function CommentsSheet({
                                     {/* Reply Content */}
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span className="font-bold text-[12px] text-zinc-150 hover:underline cursor-pointer">
+                                        <span className="font-bold text-[12px] text-ig-fg hover:underline cursor-pointer">
                                           {reply.username}
                                         </span>
-                                        <span className="text-[10px] text-zinc-500 font-medium">
+                                        <span className="text-[10px] text-ig-secondary font-medium">
                                           {reply.timestamp}
                                         </span>
                                       </div>
                                       
-                                      <p className="text-zinc-200 text-[12.5px] leading-relaxed mt-1 whitespace-pre-wrap break-words pr-2">
+                                      <p className="text-ig-fg text-[12.5px] leading-relaxed mt-1 whitespace-pre-wrap break-words pr-2">
                                         {isReplyTranslated ? TRANSLATIONS[reply.id] : reply.text}
                                       </p>
 
-                                      <div className="flex items-center gap-4 mt-1.5 text-[10.5px] font-semibold text-zinc-500">
+                                      <div className="flex items-center gap-4 mt-1.5 text-[10.5px] font-semibold text-ig-secondary">
                                         <button 
                                           onClick={() => handleReplyClick(comment.id, reply.username)}
                                           className="hover:text-zinc-400 transition-colors cursor-pointer"
@@ -376,7 +382,7 @@ export default function CommentsSheet({
                                         className={`p-1.5 transition-all duration-100 ${
                                           reply.isLiked 
                                             ? "text-red-500 hover:text-red-600 scale-110 active:scale-90" 
-                                            : "text-zinc-500 hover:text-zinc-400 active:scale-95"
+                                            : "text-ig-secondary hover:text-zinc-400 active:scale-95"
                                         }`}
                                       >
                                         <Heart 
@@ -384,7 +390,7 @@ export default function CommentsSheet({
                                         />
                                       </button>
                                       {reply.likesCount > 0 && (
-                                        <span className="text-[9px] text-zinc-500 font-semibold">
+                                        <span className="text-[9px] text-ig-secondary font-semibold">
                                           {reply.likesCount}
                                         </span>
                                       )}
@@ -401,7 +407,7 @@ export default function CommentsSheet({
                             className="flex items-center gap-3 ml-11 mt-1 cursor-pointer select-none group py-1.5 w-fit"
                           >
                             <div className="w-6 h-[1px] bg-zinc-700 group-hover:bg-zinc-650 transition-colors" />
-                            <span className="text-[11px] font-bold text-zinc-500 group-hover:text-zinc-400 transition-colors">
+                            <span className="text-[11px] font-bold text-ig-secondary group-hover:text-zinc-400 transition-colors">
                               {isRepliesExpanded 
                                 ? "Скрыть ответы" 
                                 : `Смотреть ещё ${comment.replies!.length} ${
@@ -421,7 +427,7 @@ export default function CommentsSheet({
 
             {/* Replying Indicator banner */}
             {replyingTo && (
-              <div className="flex items-center justify-between px-4 py-1.5 bg-[#2c2c2e] text-xs text-zinc-400 border-t border-zinc-800">
+              <div className="flex items-center justify-between px-4 py-1.5 bg-ig-sidebar-hover text-xs text-ig-secondary border-t border-ig-border">
                 <span>Replying to @{replyingTo.username}</span>
                 <button 
                   onClick={() => setReplyingTo(null)}
@@ -433,7 +439,7 @@ export default function CommentsSheet({
             )}
 
             {/* Emoji reaction bar */}
-            <div className="flex items-center justify-between px-4 py-2 bg-[#121212] border-t border-[#2c2c2e] select-none">
+            <div className="flex items-center justify-between px-4 py-2 bg-ig-bg border-t border-ig-border select-none">
               {EMOJIS.map((emoji) => (
                 <button
                   key={emoji}
@@ -449,7 +455,7 @@ export default function CommentsSheet({
             {/* Sticky Input Field Area */}
             <form
               onSubmit={handleSubmit}
-              className="border-t border-[#2c2c2e] p-3 bg-[#121212] flex gap-3 items-center sticky bottom-0 z-10"
+              className="border-t border-ig-border p-3 bg-ig-bg flex gap-3 items-center sticky bottom-0 z-10"
             >
               {/* User avatar on the left */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -460,14 +466,14 @@ export default function CommentsSheet({
               />
 
               {/* Input field wrapper */}
-              <div className="flex-1 relative flex items-center bg-[#262626] rounded-full px-4 py-2 border border-zinc-800/10 focus-within:border-zinc-700 transition-colors">
+              <div className="flex-1 relative flex items-center bg-ig-sidebar-hover rounded-full px-4 py-2 border border-zinc-800/10 focus-within:border-zinc-700 transition-colors">
                 <input
                   ref={inputRef}
                   type="text"
                   placeholder="Что вы об этом думаете?"
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  className="w-full bg-transparent text-white text-[13.5px] focus:outline-none placeholder-zinc-500 pr-16"
+                  className="w-full bg-transparent text-ig-fg text-[13.5px] focus:outline-none placeholder-zinc-500 pr-16"
                 />
 
                 {/* Right actions inside input bubble */}
@@ -484,7 +490,7 @@ export default function CommentsSheet({
                       {/* Media Image icon */}
                       <button 
                         type="button"
-                        className="text-zinc-400 hover:text-zinc-300 transition-colors cursor-pointer"
+                        className="text-ig-secondary hover:text-zinc-300 transition-colors cursor-pointer"
                       >
                         <Image className="w-[18px] h-[18px]" />
                       </button>

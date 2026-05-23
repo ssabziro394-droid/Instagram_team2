@@ -5,7 +5,7 @@ import { SquarePen, ChevronDown, Trash2, Search } from "lucide-react";
 import Link from "next/link";
 import {
   useGetChatsQuery,
-  useGetMyProfileQuery,
+  useGetChatMyProfileQuery,
   useGetChatByIdQuery,
   useDeleteChatMutation,
 } from "@/store/api/chatApi";
@@ -13,7 +13,7 @@ import { NewMessageModal } from "./NewMessageModal";
 import clsx from "clsx";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { jwtDecode } from "jwt-decode";
+import { decodeJWT } from "@/lib/utils";
 
 interface ChatSidebarProps {
   activeChatId: number | null;
@@ -23,8 +23,8 @@ interface ChatSidebarProps {
 const getUserIdFromToken = (token: string | null) => {
   if (!token) return null;
   try {
-    const decoded = jwtDecode<any>(token);
-    return decoded.sid;
+    const decoded = decodeJWT(token) as any;
+    return decoded?.sid;
   } catch (e) {
     return null;
   }
@@ -34,11 +34,11 @@ const DefaultAvatar = ({ className = "w-14 h-14" }: { className?: string }) => (
   <div
     className={clsx(
       className,
-      "rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 overflow-hidden shrink-0 border border-zinc-700/50",
+      "rounded-full bg-ig-sidebar-hover flex items-center justify-center text-ig-secondary overflow-hidden shrink-0 border border-zinc-700/50",
     )}
   >
     <svg
-      className="w-2/3 h-2/3 text-zinc-500"
+      className="w-2/3 h-2/3 text-ig-secondary"
       fill="currentColor"
       viewBox="0 0 24 24"
     >
@@ -91,7 +91,7 @@ const SidebarSkeleton = () => (
       <div key={i} className="flex items-center gap-3 py-2 animate-pulse">
         <div className="w-14 h-14 bg-zinc-800/80 rounded-full shrink-0" />
         <div className="flex-1 space-y-2.5 overflow-hidden">
-          <div className="h-3 bg-zinc-800 rounded-full w-2/5" />
+          <div className="h-3 bg-ig-sidebar-hover rounded-full w-2/5" />
           <div className="h-2.5 bg-zinc-800/60 rounded-full w-3/5" />
         </div>
       </div>
@@ -191,17 +191,17 @@ function SidebarChatItem({
         <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-zinc-950 rounded-full" />
       </Link>
       <div className="flex flex-col flex-1 overflow-hidden">
-        <span className="text-zinc-50 text-sm font-medium">
+        <span className="text-ig-fg text-sm font-medium">
           {partnerName || "Unknown User"}
         </span>
-        <span className="text-zinc-500 text-xs truncate mt-0.5">
+        <span className="text-ig-secondary text-xs truncate mt-0.5">
           {lastMsgText}
         </span>
       </div>
       <button
         onClick={handleDelete}
         disabled={isDeleting}
-        className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-red-500 transition-all shrink-0 disabled:opacity-50"
+        className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1.5 hover:bg-zinc-800 rounded-lg text-ig-secondary hover:text-red-500 transition-all shrink-0 disabled:opacity-50"
         title="Delete Chat"
       >
         <Trash2 className="w-4 h-4" />
@@ -216,27 +216,27 @@ function SidebarChatItem({
           }}
         >
           <div
-            className="bg-[#262626] w-[260px] md:w-[400px] rounded-xl overflow-hidden flex flex-col text-center shadow-2xl border border-zinc-800 animate-in fade-in zoom-in-95 duration-150"
+            className="bg-ig-card-bg w-[260px] md:w-[400px] rounded-xl overflow-hidden flex flex-col text-center shadow-2xl border border-ig-border animate-in fade-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 flex flex-col gap-2">
-              <h3 className="text-zinc-50 text-lg font-semibold leading-snug">
+              <h3 className="text-ig-fg text-lg font-semibold leading-snug">
                 Delete chat?
               </h3>
-              <p className="text-zinc-400 text-xs leading-relaxed px-2">
+              <p className="text-ig-secondary text-xs leading-relaxed px-2">
                 Once you delete your copy of this conversation, it cannot be
                 undone.
               </p>
             </div>
 
-            <div className="flex flex-col border-t border-zinc-800">
+            <div className="flex flex-col border-t border-ig-border">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleConfirmDelete();
                 }}
                 disabled={isDeleting}
-                className="py-3 text-red-500 font-bold text-sm hover:bg-white/5 active:bg-white/10 transition-colors border-b border-zinc-800 disabled:opacity-50 cursor-pointer"
+                className="py-3 text-red-500 font-bold text-sm hover:bg-white/5 active:bg-white/10 transition-colors border-b border-ig-border disabled:opacity-50 cursor-pointer"
               >
                 {isDeleting ? "Deleting..." : "Delete"}
               </button>
@@ -245,7 +245,7 @@ function SidebarChatItem({
                   e.stopPropagation();
                   setShowDeleteConfirm(false);
                 }}
-                className="py-3 text-zinc-50 font-normal text-sm hover:bg-white/5 active:bg-white/10 transition-colors cursor-pointer"
+                className="py-3 text-ig-fg font-normal text-sm hover:bg-white/5 active:bg-white/10 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -268,7 +268,7 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
   const currentUserId = getUserIdFromToken(token);
 
   const { data: response, isLoading } = useGetChatsQuery();
-  const { data: profileResponse } = useGetMyProfileQuery();
+  const { data: profileResponse } = useGetChatMyProfileQuery();
 
   const chats = response?.data || [];
   const currentUsername = profileResponse?.data?.userName || "Loading...";
@@ -340,19 +340,19 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
   return (
     <div
       className={clsx(
-        "w-full md:w-[350px] flex-shrink-0 border-r border-zinc-800 bg-zinc-950 flex flex-col h-full",
+        "w-full md:w-[350px] flex-shrink-0 border-r border-ig-border bg-ig-bg flex flex-col h-full",
         activeChatId !== null && "hidden md:flex",
       )}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-6 pb-4">
-        <button className="flex items-center gap-2 text-zinc-50 font-bold text-xl hover:text-zinc-300 transition-colors">
+        <button className="flex items-center gap-2 text-ig-fg font-bold text-xl hover:text-zinc-300 transition-colors">
           {currentUsername}
           <ChevronDown className="w-5 h-5" />
         </button>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="text-zinc-50 hover:text-zinc-300 transition-colors"
+          className="text-ig-fg hover:text-zinc-300 transition-colors"
         >
           <SquarePen className="w-6 h-6" />
         </button>
@@ -360,14 +360,14 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
 
       {/* Synchronous Search Bar */}
       <div className="px-6 pb-4">
-        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-400 focus-within:border-zinc-700 transition-colors">
-          <Search className="w-4 h-4 text-zinc-500 shrink-0" />
+        <div className="flex items-center gap-2 bg-ig-card-bg border border-ig-border rounded-xl px-3 py-2 text-ig-secondary focus-within:border-zinc-700 transition-colors">
+          <Search className="w-4 h-4 text-ig-secondary shrink-0" />
           <input
             type="text"
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-transparent text-zinc-50 placeholder-zinc-500 flex-1 outline-none text-sm"
+            className="bg-transparent text-ig-fg placeholder-zinc-500 flex-1 outline-none text-sm"
           />
         </div>
       </div>
@@ -383,12 +383,12 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
             className="flex flex-col items-center shrink-0 w-20 relative pt-1 pb-2"
           >
             {/* Note bubble */}
-            <div className="relative bg-zinc-800 text-zinc-50 text-[10px] px-2 py-1.5 rounded-2xl mb-2 text-center w-[78px] min-h-[42px] flex items-center justify-center shadow-lg border border-zinc-700/30">
+            <div className="relative bg-ig-sidebar-hover text-ig-fg text-[10px] px-2 py-1.5 rounded-2xl mb-2 text-center w-[78px] min-h-[42px] flex items-center justify-center shadow-lg border border-zinc-700/30">
               <span className="line-clamp-2 leading-tight font-medium whitespace-pre-line">
                 {note.noteText}
               </span>
               {/* Triangle Tail */}
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-800 rotate-45 border-r border-b border-zinc-700/30"></div>
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-ig-sidebar-hover rotate-45 border-r border-b border-zinc-700/30"></div>
             </div>
 
             {/* User Avatar */}
@@ -400,7 +400,7 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
             </div>
 
             {/* Label */}
-            <span className="text-[11px] text-zinc-400 truncate w-full text-center mt-1 font-normal">
+            <span className="text-[11px] text-ig-secondary truncate w-full text-center mt-1 font-normal">
               {note.userName}
             </span>
           </div>
@@ -408,13 +408,13 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center px-4 pb-2 border-b border-zinc-800">
+      <div className="flex items-center px-4 pb-2 border-b border-ig-border">
         <button
           className={clsx(
             "flex-1 pb-3 text-sm font-semibold transition-colors relative",
             activeTab === "Messages"
-              ? "text-zinc-50"
-              : "text-zinc-500 hover:text-zinc-300",
+              ? "text-ig-fg"
+              : "text-ig-secondary hover:text-zinc-300",
           )}
           onClick={() => setActiveTab("Messages")}
         >
@@ -427,8 +427,8 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
           className={clsx(
             "flex-1 pb-3 text-sm font-semibold transition-colors relative",
             activeTab === "Requests"
-              ? "text-zinc-50"
-              : "text-zinc-500 hover:text-zinc-300",
+              ? "text-ig-fg"
+              : "text-ig-secondary hover:text-zinc-300",
           )}
           onClick={() => setActiveTab("Requests")}
         >
@@ -444,11 +444,11 @@ export function ChatSidebar({ activeChatId, onSelectChat }: ChatSidebarProps) {
         {isLoading ? (
           <SidebarSkeleton />
         ) : chats.length === 0 ? (
-          <div className="p-4 text-zinc-500 text-sm text-center">
+          <div className="p-4 text-ig-secondary text-sm text-center">
             No messages yet.
           </div>
         ) : filteredChats.length === 0 ? (
-          <div className="p-4 text-zinc-500 text-sm text-center">
+          <div className="p-4 text-ig-secondary text-sm text-center">
             No chats match search query.
           </div>
         ) : (

@@ -5,12 +5,12 @@ import { X, Search } from "lucide-react";
 import {
   useCreateChatMutation,
   useGetChatsQuery,
-  useGetUsersQuery,
+  useGetChatUsersQuery,
 } from "@/store/api/chatApi";
 import clsx from "clsx";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { jwtDecode } from "jwt-decode";
+import { decodeJWT } from "@/lib/utils";
 
 interface NewMessageModalProps {
   isOpen: boolean;
@@ -22,11 +22,11 @@ const DefaultAvatar = ({ className = "w-12 h-12" }: { className?: string }) => (
   <div
     className={clsx(
       className,
-      "rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 overflow-hidden shrink-0 border border-zinc-700/50",
+      "rounded-full bg-ig-sidebar-hover flex items-center justify-center text-ig-secondary overflow-hidden shrink-0 border border-zinc-700/50",
     )}
   >
     <svg
-      className="w-2/3 h-2/3 text-zinc-500"
+      className="w-2/3 h-2/3 text-ig-secondary"
       fill="currentColor"
       viewBox="0 0 24 24"
     >
@@ -51,7 +51,7 @@ const resolveFileUrl = (url: string | null | undefined) => {
 const getUserIdFromToken = (token: string | null) => {
   if (!token) return null;
   try {
-    const decoded = jwtDecode<any>(token);
+    const decoded = decodeJWT(token) as any;
     return (
       decoded[
         "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
@@ -111,7 +111,7 @@ export function NewMessageModal({
   const existingChats = chatsResponse?.data || [];
 
   // Fetch users from /User/get-users endpoint
-  const { data: usersResponse, isLoading: isLoadingUsers } = useGetUsersQuery(
+  const { data: usersResponse, isLoading: isLoadingUsers } = useGetChatUsersQuery(
     {
       UserName: searchQuery || undefined,
       PageSize: 50,
@@ -188,22 +188,22 @@ export function NewMessageModal({
       }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
     >
-      <div className="w-full max-w-md rounded-xl bg-zinc-900 border border-zinc-800 shadow-2xl flex flex-col max-h-[80vh]">
+      <div className="w-full max-w-md rounded-xl bg-ig-card-bg border border-ig-border shadow-2xl flex flex-col max-h-[80vh]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 p-4 shrink-0">
+        <div className="flex items-center justify-between border-b border-ig-border p-4 shrink-0">
           <div className="w-8"></div> {/* Spacer for centering */}
-          <h2 className="text-zinc-50 font-semibold text-lg">New message</h2>
+          <h2 className="text-ig-fg font-semibold text-lg">New message</h2>
           <button
             onClick={onClose}
-            className="text-zinc-50 hover:text-zinc-300 w-8 flex justify-end"
+            className="text-ig-fg hover:text-zinc-300 w-8 flex justify-end"
           >
             <X className="w-6 h-6" />
           </button>
         </div>
 
         {/* Selected Users & Search Input */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-zinc-800 p-4 max-h-[120px] overflow-y-auto shrink-0 no-scrollbar">
-          <span className="text-zinc-400 text-sm font-medium mr-1 select-none">
+        <div className="flex flex-wrap items-center gap-2 border-b border-ig-border p-4 max-h-[120px] overflow-y-auto shrink-0 no-scrollbar">
+          <span className="text-ig-secondary text-sm font-medium mr-1 select-none">
             To whom:
           </span>
           {selectedUsers.map((user) => (
@@ -229,7 +229,7 @@ export function NewMessageModal({
             placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-transparent text-zinc-50 placeholder-zinc-500 flex-1 outline-none text-sm min-w-[120px] py-1"
+            className="bg-transparent text-ig-fg placeholder-zinc-500 flex-1 outline-none text-sm min-w-[120px] py-1"
             autoFocus
           />
         </div>
@@ -237,11 +237,11 @@ export function NewMessageModal({
         {/* Contacts List */}
         <div className="flex-1 overflow-y-auto p-2 min-h-[150px]">
           {isLoadingUsers ? (
-            <div className="text-center text-zinc-500 py-8 text-sm">
+            <div className="text-center text-ig-secondary py-8 text-sm">
               Loading users...
             </div>
           ) : filteredContacts.length === 0 ? (
-            <div className="text-center text-zinc-500 py-8 text-sm">
+            <div className="text-center text-ig-secondary py-8 text-sm">
               No account found.
             </div>
           ) : (
@@ -261,10 +261,10 @@ export function NewMessageModal({
                   <div className="flex items-center gap-3">
                     {renderAvatar(avatarUrl, "w-12 h-12", username)}
                     <div className="flex flex-col">
-                      <span className="text-zinc-50 font-medium text-sm">
+                      <span className="text-ig-fg font-medium text-sm">
                         {username}
                       </span>
-                      <span className="text-zinc-500 text-sm">{fullName}</span>
+                      <span className="text-ig-secondary text-sm">{fullName}</span>
                     </div>
                   </div>
                   <button
@@ -273,7 +273,7 @@ export function NewMessageModal({
                       "w-6 h-6 rounded-full flex items-center justify-center transition-colors border shrink-0",
                       isSelected
                         ? "bg-[#3797F0] border-transparent text-white"
-                        : "border-zinc-700 bg-transparent"
+                        : "border-ig-border bg-transparent"
                     )}
                   >
                     {isSelected && (
@@ -289,7 +289,7 @@ export function NewMessageModal({
         </div>
 
         {/* Footer Chat Button */}
-        <div className="p-4 border-t border-zinc-800 shrink-0">
+        <div className="p-4 border-t border-ig-border shrink-0">
           <button
             onClick={handleChatClick}
             disabled={selectedUsers.length === 0 || isCreating}

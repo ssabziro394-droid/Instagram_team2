@@ -10,7 +10,7 @@ import {
   useDeleteSearchHistoriesMutation,
   useDeleteSearchHistoryMutation,
   useGetSearchHistoriesQuery,
-  useGetUsersQuery,
+  useGetSearchUsersQuery,
 } from "@/store/api/searchApi";
 import type { ProfileId } from "@/types/profile";
 import type { SearchHistory, SearchUser } from "@/types/search";
@@ -74,7 +74,7 @@ export default function ExplorePage() {
   const [query, setQuery] = useState("");
   const [deletingHistoryId, setDeletingHistoryId] = useState("");
 
-  const usersQuery = useGetUsersQuery(
+  const usersQuery = useGetSearchUsersQuery(
     { search: query, pageSize: 20 },
     { skip: query.length === 0 }
   );

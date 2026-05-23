@@ -53,13 +53,13 @@ export default function EditProfileModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-      <div className="w-full max-w-lg rounded-lg border border-zinc-800 bg-black text-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+      <div className="w-full max-w-lg rounded-lg border border-ig-border bg-ig-bg text-ig-fg shadow-2xl">
+        <div className="flex items-center justify-between border-b border-ig-border px-4 py-3">
           <h2 className="text-base font-semibold">Edit profile</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-zinc-400 transition hover:bg-zinc-900 hover:text-white"
+            className="rounded-full p-2 text-ig-secondary transition hover:bg-zinc-900 hover:text-white"
             aria-label="Close edit profile"
           >
             <X className="h-5 w-5" />
@@ -72,7 +72,7 @@ export default function EditProfileModal({
             <input
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-white outline-none transition focus:border-zinc-600"
+              className="rounded-lg border border-ig-border bg-ig-bg px-3 py-2 text-ig-fg outline-none transition focus:border-zinc-600"
             />
           </label>
 
@@ -81,7 +81,7 @@ export default function EditProfileModal({
             <input
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
-              className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-white outline-none transition focus:border-zinc-600"
+              className="rounded-lg border border-ig-border bg-ig-bg px-3 py-2 text-ig-fg outline-none transition focus:border-zinc-600"
             />
           </label>
 
@@ -91,7 +91,7 @@ export default function EditProfileModal({
               value={bio}
               onChange={(event) => setBio(event.target.value)}
               rows={4}
-              className="resize-none rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-white outline-none transition focus:border-zinc-600"
+              className="resize-none rounded-lg border border-ig-border bg-ig-bg px-3 py-2 text-ig-fg outline-none transition focus:border-zinc-600"
             />
           </label>
 
@@ -99,14 +99,14 @@ export default function EditProfileModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
+              className="rounded-lg bg-ig-card-bg px-4 py-2 text-sm font-medium text-ig-fg transition hover:bg-zinc-800"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSaving}
-              className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-70"
+              className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-ig-fg transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isSaving ? "Saving..." : "Save"}
             </button>
