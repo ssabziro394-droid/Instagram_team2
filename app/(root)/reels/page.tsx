@@ -7,6 +7,7 @@ import ReelSkeleton from "@/components/reels/ReelSkeleton";
 import { Reel, Comment } from "@/components/reels/types";
 import { MOCK_REELS, MOCK_COMMENTS } from "@/components/reels/mockData";
 import { WifiOff, Film, RefreshCw, Lock } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function ReelsPage() {
   // 1. Fetch from Swagger endpoint via RTK Query
@@ -22,6 +23,22 @@ export default function ReelsPage() {
   const [isAutoScrollActive, setIsAutoScrollActive] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  // Check if unauthorized (401 / 403) or generic error
+  const isUnauthorized = 
+    isError && 
+    error && 
+    (
+      (typeof error === "object" && "status" in error && (error.status === 401 || error.status === 403)) ||
+      (typeof error === "object" && "originalStatus" in error && (error.originalStatus === 401 || error.originalStatus === 403))
+    );
+
+  useEffect(() => {
+    if (isError) {
+      window.location.href = "/login";
+    }
+  }, [isError]);
 
   // Initialize reels list and comments
   useEffect(() => {
@@ -181,15 +198,6 @@ export default function ReelsPage() {
 
   // 5. Beautiful Error & Empty State when API is offline or has 0 reels (DO NOT use mock data fallbacks)
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-
-  // Check if unauthorized (401 / 403)
-  const isUnauthorized = 
-    isError && 
-    error && 
-    (
-      (typeof error === "object" && "status" in error && (error.status === 401 || error.status === 403)) ||
-      (typeof error === "object" && "originalStatus" in error && (error.originalStatus === 401 || error.originalStatus === 403))
-    );
 
   if (reelsList.length === 0) {
     return (

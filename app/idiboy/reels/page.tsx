@@ -7,6 +7,7 @@ import ReelSkeleton from "@/components/reels/ReelSkeleton";
 import { Reel, Comment } from "./types";
 import { MOCK_COMMENTS } from "./components/mockData";
 import { WifiOff, Film, RefreshCw, Lock } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function IdiboyReelsPage() {
   // 1. Fetch from Swagger endpoint via RTK Query
@@ -23,6 +24,22 @@ export default function IdiboyReelsPage() {
   const [isAutoScrollActive, setIsAutoScrollActive] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  // Check if unauthorized (401 / 403) or generic error
+  const isUnauthorized = 
+    isError && 
+    error && 
+    (
+      (typeof error === "object" && "status" in error && (error.status === 401 || error.status === 403)) ||
+      (typeof error === "object" && "originalStatus" in error && (error.originalStatus === 401 || error.originalStatus === 403))
+    );
+
+  useEffect(() => {
+    if (isError) {
+      window.location.href = "/login";
+    }
+  }, [isError]);
 
   // Initialize reels list and comments map
   useEffect(() => {
@@ -180,13 +197,6 @@ export default function IdiboyReelsPage() {
 
   // Beautiful error/empty screens when API is offline or has no data
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://instagram-api.softclub.tj";
-  const isUnauthorized = 
-    isError && 
-    error && 
-    (
-      (typeof error === "object" && "status" in error && (error.status === 401 || error.status === 403)) ||
-      (typeof error === "object" && "originalStatus" in error && (error.originalStatus === 401 || error.originalStatus === 403))
-    );
 
   if (reelsList.length === 0) {
     return (
