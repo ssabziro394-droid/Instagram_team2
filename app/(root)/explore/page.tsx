@@ -78,7 +78,7 @@ export default function ExplorePage() {
   const [searchInputValue, setSearchInputValue] = useState("");
   const [deletingHistoryId, setDeletingHistoryId] = useState("");
 
-  const usersQuery = useGetUsersQuery(
+  const usersQuery = useGetSearchUsersQuery(
     { search: query, pageSize: 20 },
     { skip: query.length === 0 }
   );

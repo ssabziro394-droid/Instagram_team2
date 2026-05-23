@@ -1,23 +1,18 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import type { BaseQueryFn, FetchArgs, FetchBaseQueryError, FetchBaseQueryMeta } from "@reduxjs/toolkit/query/react";
-// @TODO(Team Lead): Please review this RootState import needed to access the auth token
+import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from "@reduxjs/toolkit/query/react";
 import type { RootState } from "../store";
 import { logout } from "../slices/authSlice";
 
-const API_BASE_URL = "https://instagram-api.softclub.tj/";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://instagram-api.softclub.tj";
 
 function getStoredToken() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
+  if (typeof window === "undefined") return null;
   return localStorage.getItem("token");
 }
 
-const rawBaseQuery = fetchBaseQuery({
+const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
   prepareHeaders: (headers, { getState }) => {
-    //here: @TODO(Team Lead): Added token injection logic here. Please review and approve.
     const token = (getState() as RootState).auth?.token ?? getStoredToken();
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
@@ -29,23 +24,22 @@ const rawBaseQuery = fetchBaseQuery({
 const baseQueryWithReauth: BaseQueryFn<
   string | FetchArgs,
   unknown,
-  FetchBaseQueryError,
-  {},
-  FetchBaseQueryMeta
+  FetchBaseQueryError
 > = async (args, api, extraOptions) => {
-  const result = await rawBaseQuery(args, api, extraOptions);
+  let result = await baseQuery(args, api, extraOptions);
   
   if (result.error && result.error.status === 401) {
     api.dispatch(logout());
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
   }
-  
   return result;
 };
 
-// This is a placeholder base API using MockAPI or similar backend
 export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["Post", "User", "Reel", "Comment"],
+  tagTypes: ["Post", "User", "Reel", "Comment", "Following"],
   endpoints: () => ({}),
 });

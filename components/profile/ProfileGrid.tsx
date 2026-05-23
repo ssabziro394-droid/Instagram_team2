@@ -132,7 +132,7 @@ export default function ProfileGrid({
         {Array.from({ length: 9 }).map((_, index) => (
           <div
             key={index}
-            className="aspect-square animate-pulse rounded-sm bg-zinc-900"
+            className="aspect-square animate-pulse rounded-sm bg-ig-card-bg"
           />
         ))}
       </section>
@@ -141,7 +141,7 @@ export default function ProfileGrid({
 
   if (isError) {
     return (
-      <section className="mx-auto flex max-w-4xl flex-col items-center justify-center gap-3 px-4 py-16 text-center text-zinc-400 sm:px-8">
+      <section className="mx-auto flex max-w-4xl flex-col items-center justify-center gap-3 px-4 py-16 text-center text-ig-secondary sm:px-8">
         <ImageOff className="h-10 w-10 text-zinc-600" />
         <p className="text-sm">{errorMessage}</p>
       </section>
@@ -151,14 +151,14 @@ export default function ProfileGrid({
   if (posts.length === 0) {
     return (
       <section className="mx-auto flex max-w-4xl flex-col items-center justify-center gap-3 px-4 py-16 text-center sm:px-8">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full border border-zinc-700">
-          <Grid3X3 className="h-7 w-7 text-zinc-500" />
+        <div className="flex h-16 w-16 items-center justify-center rounded-full border border-ig-border">
+          <Grid3X3 className="h-7 w-7 text-ig-secondary" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-white">
+          <h2 className="text-lg font-semibold text-ig-fg">
             Публикаций пока нет
           </h2>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-ig-secondary">
             Когда появятся публикации, они будут отображаться здесь.
           </p>
         </div>

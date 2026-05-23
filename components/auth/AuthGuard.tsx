@@ -14,19 +14,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsMounted(true);
-    }, 0);
-    
-    if (!token) {
+    setIsMounted(true);
+    if (!token && pathName !== "/login" && pathName !== "/register") {
       router.replace("/login");
     }
 
-    if ((pathName === "/login" || pathName === "/register") && token) {
+    if (token && (pathName === "/login" || pathName === "/register")) {
       router.push("/");
     }
-
-    return () => clearTimeout(timer);
   }, [token, router, pathName]);
 
   if (!isMounted) {

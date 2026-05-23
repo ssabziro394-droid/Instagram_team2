@@ -1,22 +1,58 @@
-import { Suspense } from "react";
+"use client";
+
+import React, { useState, Suspense } from "react";
+import StoriesBar from "@/components/feed/StoriesBar";
+import FeedList from "@/components/feed/FeedList";
+import Suggestions from "@/components/feed/Suggestions";
+import PostDetailModal from "@/components/feed/PostDetailModal";
 import CreatePostModalGate from "@/components/create/CreatePostModalGate";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function HomeFeed() {
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
+
   return (
-    <div className="max-w-2xl mx-auto py-8 px-4 flex flex-col gap-6">
+    <div className="min-h-screen bg-ig-bg text-ig-fg transition-colors duration-300 w-full">
       <Suspense fallback={null}>
         <CreatePostModalGate />
       </Suspense>
 
-      <div className="border-b border-zinc-800 pb-4 mb-4">
-        <h1 className="text-2xl font-bold tracking-tight">Лента</h1>
-        <p className="text-zinc-400 text-sm">Здесь будут отображаться посты пользователей.</p>
+      {/* Mobile Top Header */}
+      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-ig-border bg-ig-bg/85 backdrop-blur-md sticky top-0 z-40">
+        <span className="font-bold font-serif text-xl tracking-wider">Instagram</span>
+        <div className="flex items-center gap-4">
+          {/* Custom icons could go here */}
+        </div>
       </div>
-      
-      {/* Feed Placeholder */}
-      <div className="flex flex-col items-center justify-center h-[50vh] border border-dashed border-zinc-800 rounded-2xl p-6 bg-zinc-950">
-        <span className="text-zinc-400">Лента новостей пуста. Добавьте первый пост!</span>
+
+      {/* Max-width 935px aligned with real Instagram desktop width */}
+      <div className="max-w-[935px] mx-auto px-4 py-4 md:py-8 flex gap-8 justify-center">
+        {/* Left Side: Feed Content (exactly 470px max-width like Instagram feed posts) */}
+        <div className="w-full max-w-[470px] flex flex-col gap-6">
+          {/* StoriesBar at the absolute top of the feed */}
+          <StoriesBar />
+          
+          {/* FeedList containing main posts feed */}
+          <FeedList onViewDetails={setSelectedPostId} />
+        </div>
+
+        {/* Right Side: Suggestions Column (Desktop only, exactly 320px width) */}
+        <div className="hidden lg:block w-[320px] shrink-0">
+          <div className="sticky top-[80px]">
+            <Suggestions />
+          </div>
+        </div>
       </div>
+
+      {/* Detailed view Modal */}
+      <AnimatePresence>
+        {selectedPostId !== null && (
+          <PostDetailModal 
+            postId={selectedPostId} 
+            onClose={() => setSelectedPostId(null)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

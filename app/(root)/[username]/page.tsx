@@ -255,19 +255,19 @@ export default function ProfilePage() {
   if (isProfileError) {
     return (
       <div className="mx-auto flex min-h-[70vh] max-w-2xl flex-col items-center justify-center gap-4 px-4 text-center">
-        <AlertCircle className="h-10 w-10 text-zinc-500" />
+        <AlertCircle className="h-10 w-10 text-ig-secondary" />
         <div>
-          <h1 className="text-xl font-semibold text-white">
+          <h1 className="text-xl font-semibold text-ig-fg">
             Не удалось загрузить профиль
           </h1>
-          <p className="mt-2 text-sm text-zinc-500">
+          <p className="mt-2 text-sm text-ig-secondary">
             Данные профиля временно недоступны.
           </p>
         </div>
         <button
           type="button"
           onClick={handleRetry}
-          className="inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
+          className="inline-flex items-center gap-2 rounded-lg bg-ig-sidebar-hover px-4 py-2 text-sm font-medium text-ig-fg transition hover:bg-zinc-700"
         >
           <RefreshCw className="h-4 w-4" />
           Попробовать снова
@@ -278,11 +278,10 @@ export default function ProfilePage() {
 
 
   return (
-    <div className="min-h-full bg-black text-white">
+    <div className="min-h-full bg-ig-bg text-ig-fg">
       <Suspense fallback={null}>
         <CreatePostModalGate onPostCreated={handlePostCreated} />
       </Suspense>
-
       <ProfileHeader
         profile={profileWithPostCount}
         isLoading={isProfileLoading}
