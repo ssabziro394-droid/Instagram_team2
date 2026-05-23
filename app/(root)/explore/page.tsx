@@ -57,11 +57,7 @@ function getProfileSlug(user: SearchUser) {
 
 function matchesQuery(user: SearchUser, query: string) {
   const normalizedQuery = query.toLowerCase();
-  const searchableText = [
-    getUsername(user),
-    getDisplayName(user),
-    user.bio,
-  ]
+  const searchableText = [getUsername(user), getDisplayName(user), user.bio]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
@@ -78,82 +74,50 @@ export default function ExplorePage() {
     { search: query, pageSize: 20 },
     { skip: query.length === 0 }
   );
-  const historiesQuery = useGetSearchHistoriesQuery();
+
+  const historiesQuery = useGetSearchHistoriesQuery(undefined, {
+    skip: query.length > 0,
+  });
+
   const [addSearchHistory] = useAddSearchHistoryMutation();
   const [addUserSearchHistory] = useAddUserSearchHistoryMutation();
   const [deleteSearchHistory] = useDeleteSearchHistoryMutation();
   const [deleteSearchHistories] = useDeleteSearchHistoriesMutation();
 
-  const users = useMemo(() => {
-    if (query.length === 0) {
-      return [];
-    }
+  const searchResults: SearchUser[] = useMemo(() => {
+    const users = usersQuery.data ?? [];
+    if (!query) return users;
+    return users.filter((u) => matchesQuery(u, query));
+  }, [usersQuery.data, query]);
 
-    const source = usersQuery.data ?? [];
-    const filtered = source.filter((user) => matchesQuery(user, query));
+  const searchHistories: SearchHistory[] = useMemo(() => {
+    return historiesQuery.data ?? [];
+  }, [historiesQuery.data]);
 
-    return filtered.length > 0 ? filtered : source;
-  }, [query, usersQuery.data]);
-
-  const handleDebouncedChange = useCallback((value: string) => {
-    setQuery(value);
-  }, []);
-
-  const navigateToUser = useCallback(
-    (user: SearchUser) => {
-      const slug = getProfileSlug(user);
-      if (slug) {
-        router.push(`/${encodeURIComponent(slug)}`);
-      }
-    },
-    [router]
-  );
-
-  const handleSelectUser = useCallback(
+  const handleUserClick = useCallback(
     async (user: SearchUser) => {
-      const userId = getUserId(user);
-      const username = getUsername(user);
-
       try {
-        if (userId) {
-          await addUserSearchHistory({
-            userId,
-            searchedUserId: userId,
-          }).unwrap();
+        const id = getUserId(user);
+        if (id) {
+          await addUserSearchHistory({ userId: id }).unwrap();
         } else {
-          await addSearchHistory({
-            searchText: username || query,
-            query: username || query,
-          }).unwrap();
+          await addSearchHistory({ query: getUsername(user) }).unwrap();
         }
       } catch {
-        // Navigation should still work if history persistence is unavailable.
+        // silently ignore history save errors
       }
-
-      navigateToUser(user);
+      router.push(`/profile/${getProfileSlug(user)}`);
     },
-    [addSearchHistory, addUserSearchHistory, navigateToUser, query]
-  );
-
-  const handleSelectHistory = useCallback(
-    (history: SearchHistory) => {
-      navigateToUser(getHistoryUser(history));
-    },
-    [navigateToUser]
+    [router, addSearchHistory, addUserSearchHistory]
   );
 
   const handleDeleteHistory = useCallback(
     async (history: SearchHistory) => {
-      const historyId = getHistoryId(history);
-      if (!historyId) {
-        return;
-      }
-
-      setDeletingHistoryId(historyId);
+      const id = getHistoryId(history);
+      if (!id) return;
+      setDeletingHistoryId(id);
       try {
-        await deleteSearchHistory({ id: historyId }).unwrap();
-      } catch {
-        // Keep the current list visible if the backend cannot delete the item.
+        await deleteSearchHistory({ id }).unwrap();
       } finally {
         setDeletingHistoryId("");
       }
@@ -161,37 +125,33 @@ export default function ExplorePage() {
     [deleteSearchHistory]
   );
 
-  const handleClearHistory = useCallback(async () => {
+  const handleClearAllHistory = useCallback(async () => {
     try {
-      await deleteSearchHistories().unwrap();
+      await deleteSearchHistories({}).unwrap();
     } catch {
-      // Keep recent searches visible if the backend cannot clear them.
+      // silently ignore
     }
   }, [deleteSearchHistories]);
 
   return (
-    <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-5 px-4 py-8 sm:px-6">
-      <div className="border-b border-zinc-800 pb-5">
-        <h1 className="text-2xl font-bold tracking-tight text-white">Search</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Find people and return to recent profile searches.
-        </p>
+    <div className="w-full min-h-screen bg-ig-bg text-ig-fg">
+      <div className="max-w-2xl mx-auto px-4 py-6 md:py-10">
+        <SearchBar
+          query={query}
+          onChange={setQuery}
+          onClear={() => setQuery("")}
+        />
+        <SearchResults
+          query={query}
+          searchResults={searchResults}
+          searchHistories={searchHistories}
+          isLoading={usersQuery.isFetching || historiesQuery.isFetching}
+          deletingHistoryId={deletingHistoryId}
+          onUserClick={handleUserClick}
+          onDeleteHistory={handleDeleteHistory}
+          onClearAllHistory={handleClearAllHistory}
+        />
       </div>
-
-      <SearchBar onDebouncedChange={handleDebouncedChange} />
-
-      <SearchResults
-        query={query}
-        users={users}
-        histories={historiesQuery.data ?? []}
-        isLoading={usersQuery.isLoading || usersQuery.isFetching}
-        isError={usersQuery.isError}
-        deletingHistoryId={deletingHistoryId}
-        onSelectUser={handleSelectUser}
-        onSelectHistory={handleSelectHistory}
-        onDeleteHistory={handleDeleteHistory}
-        onClearHistory={handleClearHistory}
-      />
     </div>
   );
 }

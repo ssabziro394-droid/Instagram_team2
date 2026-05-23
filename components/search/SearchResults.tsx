@@ -60,7 +60,7 @@ function Avatar({ user }: { user: SearchUser }) {
 
   return (
     <div
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-zinc-900 bg-cover bg-center text-sm font-semibold text-zinc-500"
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ig-sidebar-hover bg-cover bg-center text-sm font-semibold text-ig-secondary"
       style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
       aria-label={`${username} avatar`}
     >
@@ -87,11 +87,11 @@ function UserRow({
     >
       <Avatar user={user} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-white">
+        <span className="block truncate text-sm font-semibold text-ig-fg">
           {username}
         </span>
         {fullName && (
-          <span className="block truncate text-sm text-zinc-500">
+          <span className="block truncate text-sm text-ig-secondary">
             {fullName}
           </span>
         )}
@@ -116,15 +116,15 @@ export default function SearchResults({
 
   if (hasQuery) {
     return (
-      <div className="rounded-lg border border-zinc-800 bg-black">
+      <div className="rounded-lg border border-ig-border bg-ig-bg">
         {isLoading && (
           <div className="flex flex-col gap-1 p-3">
             {Array.from({ length: 5 }).map((_, index) => (
               <div key={index} className="flex items-center gap-3 px-3 py-3">
-                <div className="h-11 w-11 animate-pulse rounded-full bg-zinc-900" />
+                <div className="h-11 w-11 animate-pulse rounded-full bg-ig-sidebar-hover" />
                 <div className="flex flex-1 flex-col gap-2">
-                  <div className="h-4 w-32 animate-pulse rounded bg-zinc-900" />
-                  <div className="h-3 w-44 animate-pulse rounded bg-zinc-900" />
+                  <div className="h-4 w-32 animate-pulse rounded bg-ig-sidebar-hover" />
+                  <div className="h-3 w-44 animate-pulse rounded bg-ig-sidebar-hover" />
                 </div>
               </div>
             ))}
@@ -132,14 +132,14 @@ export default function SearchResults({
         )}
 
         {!isLoading && isError && (
-          <div className="flex flex-col items-center gap-2 px-4 py-12 text-center text-zinc-500">
+          <div className="flex flex-col items-center gap-2 px-4 py-12 text-center text-ig-secondary">
             <Search className="h-8 w-8" />
             <p className="text-sm">Search is unavailable right now.</p>
           </div>
         )}
 
         {!isLoading && !isError && users.length === 0 && (
-          <div className="flex flex-col items-center gap-2 px-4 py-12 text-center text-zinc-500">
+          <div className="flex flex-col items-center gap-2 px-4 py-12 text-center text-ig-secondary">
             <UserRound className="h-8 w-8" />
             <p className="text-sm">No users found.</p>
           </div>
@@ -161,9 +161,9 @@ export default function SearchResults({
   }
 
   return (
-    <div className="rounded-lg border border-zinc-800 bg-black">
-      <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-        <h2 className="text-sm font-semibold text-white">Recent</h2>
+    <div className="rounded-lg border border-ig-border bg-ig-bg">
+      <div className="flex items-center justify-between border-b border-ig-border px-4 py-3">
+        <h2 className="text-sm font-semibold text-ig-fg">Recent</h2>
         {histories.length > 0 && (
           <button
             type="button"
@@ -176,7 +176,7 @@ export default function SearchResults({
       </div>
 
       {histories.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 px-4 py-12 text-center text-zinc-500">
+        <div className="flex flex-col items-center gap-2 px-4 py-12 text-center text-ig-secondary">
           <Clock className="h-8 w-8" />
           <p className="text-sm">No recent searches.</p>
         </div>
@@ -201,7 +201,7 @@ export default function SearchResults({
                   type="button"
                   onClick={() => onDeleteHistory(history)}
                   disabled={!historyId || deletingHistoryId === historyId}
-                  className="rounded-full p-2 text-zinc-500 opacity-100 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100"
+                  className="rounded-full p-2 text-ig-secondary opacity-100 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100"
                   aria-label="Delete recent search"
                 >
                   <Trash2 className="h-4 w-4" />
