@@ -1,18 +1,18 @@
 "use client";
 
-import { Clock, Search, Trash2, UserRound } from "lucide-react";
+import { Search, X, UserRound, BadgeCheck } from "lucide-react";
 import type { SearchHistory, SearchUser } from "@/types/search";
 
 type SearchResultsProps = {
   query: string;
   users: SearchUser[];
-  histories: SearchHistory[];
+  histories: (SearchHistory & { isText?: boolean })[];
   isLoading?: boolean;
   isError?: boolean;
   deletingHistoryId?: string;
   onSelectUser: (user: SearchUser) => void;
-  onSelectHistory: (history: SearchHistory) => void;
-  onDeleteHistory: (history: SearchHistory) => void;
+  onSelectHistory: (history: SearchHistory & { isText?: boolean }) => void;
+  onDeleteHistory: (history: SearchHistory & { isText?: boolean }) => void;
   onClearHistory: () => void;
 };
 
@@ -27,7 +27,7 @@ function getHistoryId(history: SearchHistory) {
 }
 
 function getUsername(user: SearchUser) {
-  return user.username ?? user.userName ?? "user";
+  return user.username ?? user.userName ?? "";
 }
 
 function getFullName(user: SearchUser) {
@@ -40,6 +40,17 @@ function getFullName(user: SearchUser) {
 
 function getAvatarUrl(user: SearchUser) {
   return user.avatarUrl ?? user.imageUrl ?? user.image ?? user.avatar ?? "";
+}
+
+function getSubtitleText(user: SearchUser) {
+  // Return full name, email, or bio / description
+  return (
+    getFullName(user) ||
+    user.email ||
+    user.bio ||
+    user.description ||
+    ""
+  );
 }
 
 function historyUser(history: SearchHistory): SearchUser {
@@ -60,11 +71,12 @@ function Avatar({ user }: { user: SearchUser }) {
 
   return (
     <div
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-zinc-900 bg-cover bg-center text-sm font-semibold text-zinc-500"
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-zinc-800 bg-cover bg-center text-sm font-semibold text-zinc-300"
       style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
       aria-label={`${username} avatar`}
     >
-      {!avatarUrl && username.charAt(0).toUpperCase()}
+      {!avatarUrl && username ? username.charAt(0).toUpperCase() : null}
+      {!avatarUrl && !username && <UserRound className="h-5 w-5 text-zinc-500" />}
     </div>
   );
 }
@@ -77,22 +89,32 @@ function UserRow({
   onClick: () => void;
 }) {
   const username = getUsername(user);
-  const fullName = getFullName(user);
+  const subtitle = getSubtitleText(user);
+  const isVerified =
+    user.isVerified ||
+    user.verified ||
+    user.isFamous ||
+    false;
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition hover:bg-zinc-900"
+      className="flex h-[64px] w-full items-center gap-3 rounded-lg px-3 text-left transition hover:bg-zinc-900"
     >
       <Avatar user={user} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-white">
-          {username}
+        <span className="flex items-center gap-1">
+          <span className="block truncate text-sm font-semibold text-white">
+            {username}
+          </span>
+          {isVerified && (
+            <BadgeCheck className="h-4 w-4 fill-sky-500 text-black shrink-0" />
+          )}
         </span>
-        {fullName && (
+        {subtitle && (
           <span className="block truncate text-sm text-zinc-500">
-            {fullName}
+            {subtitle}
           </span>
         )}
       </span>
@@ -116,11 +138,11 @@ export default function SearchResults({
 
   if (hasQuery) {
     return (
-      <div className="rounded-lg border border-zinc-800 bg-black">
+      <div className="rounded-xl border border-zinc-800 bg-black">
         {isLoading && (
           <div className="flex flex-col gap-1 p-3">
             {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="flex items-center gap-3 px-3 py-3">
+              <div key={index} className="flex h-[64px] items-center gap-3 px-3">
                 <div className="h-11 w-11 animate-pulse rounded-full bg-zinc-900" />
                 <div className="flex flex-1 flex-col gap-2">
                   <div className="h-4 w-32 animate-pulse rounded bg-zinc-900" />
@@ -133,15 +155,14 @@ export default function SearchResults({
 
         {!isLoading && isError && (
           <div className="flex flex-col items-center gap-2 px-4 py-12 text-center text-zinc-500">
-            <Search className="h-8 w-8" />
+            <Search className="h-8 w-8 text-zinc-600" />
             <p className="text-sm">Search is unavailable right now.</p>
           </div>
         )}
 
         {!isLoading && !isError && users.length === 0 && (
-          <div className="flex flex-col items-center gap-2 px-4 py-12 text-center text-zinc-500">
-            <UserRound className="h-8 w-8" />
-            <p className="text-sm">No users found.</p>
+          <div className="flex flex-col items-center justify-center px-4 py-12 text-center text-zinc-500">
+            <p className="text-sm text-zinc-400 font-medium">Ничего не найдено</p>
           </div>
         )}
 
@@ -161,35 +182,68 @@ export default function SearchResults({
   }
 
   return (
-    <div className="rounded-lg border border-zinc-800 bg-black">
+    <div className="rounded-xl border border-zinc-800 bg-black">
       <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-        <h2 className="text-sm font-semibold text-white">Recent</h2>
+        <h2 className="text-sm font-semibold text-white">Недавнее</h2>
         {histories.length > 0 && (
           <button
             type="button"
             onClick={onClearHistory}
-            className="text-sm font-semibold text-sky-400 transition hover:text-sky-300"
+            className="text-xs font-semibold text-sky-500 transition hover:text-sky-400"
           >
-            Clear all
+            Очистить все
           </button>
         )}
       </div>
 
       {histories.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-4 py-12 text-center text-zinc-500">
-          <Clock className="h-8 w-8" />
-          <p className="text-sm">No recent searches.</p>
+          <p className="text-sm text-zinc-500">Нет недавних запросов.</p>
         </div>
       ) : (
         <div className="p-2">
           {histories.map((history, index) => {
-            const user = historyUser(history);
             const historyId = getHistoryId(history);
+            
+            if (history.isText) {
+              const searchText = history.text ?? history.searchText ?? history.query ?? "";
+              return (
+                <div
+                  key={historyId || `text-${searchText}-${index}`}
+                  className="group flex h-[64px] items-center gap-2 rounded-lg pr-2 transition hover:bg-zinc-900"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSelectHistory(history)}
+                    className="flex flex-1 items-center gap-3 rounded-lg px-3 text-left transition"
+                  >
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-zinc-400">
+                      <Search className="h-5 w-5" />
+                    </div>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-white">
+                        {searchText}
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteHistory(history)}
+                    disabled={!historyId || deletingHistoryId === historyId}
+                    className="rounded-full p-2 text-zinc-500 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Delete recent search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            }
 
+            const user = historyUser(history);
             return (
               <div
-                key={historyId || `${getUsername(user)}-${index}`}
-                className="group flex items-center gap-2 rounded-lg pr-2 transition hover:bg-zinc-900"
+                key={historyId || `user-${getUsername(user)}-${index}`}
+                className="group flex h-[64px] items-center gap-2 rounded-lg pr-2 transition hover:bg-zinc-900"
               >
                 <div className="min-w-0 flex-1">
                   <UserRow
@@ -201,10 +255,10 @@ export default function SearchResults({
                   type="button"
                   onClick={() => onDeleteHistory(history)}
                   disabled={!historyId || deletingHistoryId === historyId}
-                  className="rounded-full p-2 text-zinc-500 opacity-100 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100"
+                  className="rounded-full p-2 text-zinc-500 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                   aria-label="Delete recent search"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             );

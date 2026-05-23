@@ -12,6 +12,8 @@ import {
   PlusSquare, 
   User
 } from "lucide-react";
+import { useGetMyProfileQuery } from "@/store/api/profileApi";
+import { getUsernameFromToken } from "@/lib/utils";
 
 function InstagramIcon({ className }: { className?: string }) {
   return (
@@ -37,6 +39,13 @@ function InstagramIcon({ className }: { className?: string }) {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { data: myProfile } = useGetMyProfileQuery();
+
+  const dynamicUsername =
+    myProfile?.username ??
+    myProfile?.userName ??
+    getUsernameFromToken() ??
+    "username";
 
   const navItems = [
     { label: "Home", href: "/", icon: Home },
@@ -46,8 +55,9 @@ export default function Sidebar() {
     { label: "Messages", href: "/messages", icon: MessageSquare },
     { label: "Notifications", href: "#", icon: Heart },
     { label: "Create", href: "/?create=true", icon: PlusSquare },
-    { label: "Profile", href: "/username", icon: User }, // Username will be dynamic later
+    { label: "Profile", href: `/${dynamicUsername}`, icon: User },
   ];
+
 
   return (
     <div className="flex flex-col h-full p-6 justify-between">

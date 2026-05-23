@@ -51,10 +51,11 @@ export default function RegisterPage() {
       }
 
       router.push("/login");
-    } catch (err: any) {
+    } catch (err) {
+      const error = err as { data?: { errors?: string[]; title?: string } };
       setServerError(
-        err?.data?.errors?.join(", ") ||
-          err?.data?.title ||
+        error?.data?.errors?.join(", ") ||
+          error?.data?.title ||
           "Ошибка при регистрации. Проверьте данные.",
       );
     }

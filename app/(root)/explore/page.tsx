@@ -11,6 +11,9 @@ import {
   useDeleteSearchHistoryMutation,
   useGetSearchHistoriesQuery,
   useGetUsersQuery,
+  useGetUserSearchHistoriesQuery,
+  useDeleteUserSearchHistoryMutation,
+  useDeleteUserSearchHistoriesMutation,
 } from "@/store/api/searchApi";
 import type { ProfileId } from "@/types/profile";
 import type { SearchHistory, SearchUser } from "@/types/search";
@@ -72,17 +75,23 @@ function matchesQuery(user: SearchUser, query: string) {
 export default function ExplorePage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [searchInputValue, setSearchInputValue] = useState("");
   const [deletingHistoryId, setDeletingHistoryId] = useState("");
 
   const usersQuery = useGetUsersQuery(
     { search: query, pageSize: 20 },
     { skip: query.length === 0 }
   );
-  const historiesQuery = useGetSearchHistoriesQuery();
+  
+  const textHistoriesQuery = useGetSearchHistoriesQuery();
+  const userHistoriesQuery = useGetUserSearchHistoriesQuery();
+
   const [addSearchHistory] = useAddSearchHistoryMutation();
   const [addUserSearchHistory] = useAddUserSearchHistoryMutation();
   const [deleteSearchHistory] = useDeleteSearchHistoryMutation();
+  const [deleteUserSearchHistory] = useDeleteUserSearchHistoryMutation();
   const [deleteSearchHistories] = useDeleteSearchHistoriesMutation();
+  const [deleteUserSearchHistories] = useDeleteUserSearchHistoriesMutation();
 
   const users = useMemo(() => {
     if (query.length === 0) {
@@ -95,8 +104,35 @@ export default function ExplorePage() {
     return filtered.length > 0 ? filtered : source;
   }, [query, usersQuery.data]);
 
+  const combinedHistories = useMemo(() => {
+    const textHistories = textHistoriesQuery.data ?? [];
+    const userHistories = userHistoriesQuery.data ?? [];
+
+    const textItems = textHistories.map((h) => ({
+      ...h,
+      isText: true,
+    }));
+    const userItems = userHistories.map((h) => ({
+      ...h,
+      isText: false,
+    }));
+
+    const combined = [...textItems, ...userItems];
+    return combined.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (dateA && dateB) {
+        return dateB - dateA;
+      }
+      const idA = Number(a.id) || 0;
+      const idB = Number(b.id) || 0;
+      return idB - idA;
+    });
+  }, [textHistoriesQuery.data, userHistoriesQuery.data]);
+
   const handleDebouncedChange = useCallback((value: string) => {
     setQuery(value);
+    setSearchInputValue(value);
   }, []);
 
   const navigateToUser = useCallback(
@@ -112,38 +148,47 @@ export default function ExplorePage() {
   const handleSelectUser = useCallback(
     async (user: SearchUser) => {
       const userId = getUserId(user);
-      const username = getUsername(user);
-
       try {
         if (userId) {
-          await addUserSearchHistory({
-            userId,
-            searchedUserId: userId,
-          }).unwrap();
-        } else {
-          await addSearchHistory({
-            searchText: username || query,
-            query: username || query,
-          }).unwrap();
+          await addUserSearchHistory(userId).unwrap();
         }
       } catch {
-        // Navigation should still work if history persistence is unavailable.
+        // Navigation should still work if history persistence fails.
       }
-
       navigateToUser(user);
     },
-    [addSearchHistory, addUserSearchHistory, navigateToUser, query]
+    [addUserSearchHistory, navigateToUser]
   );
 
   const handleSelectHistory = useCallback(
-    (history: SearchHistory) => {
-      navigateToUser(getHistoryUser(history));
+    async (history: SearchHistory & { isText?: boolean }) => {
+      if (history.isText) {
+        const text = history.text ?? history.searchText ?? history.query ?? "";
+        setQuery(text);
+        setSearchInputValue(text);
+        try {
+          await addSearchHistory(text).unwrap();
+        } catch {
+          // Ignore error
+        }
+      } else {
+        const user = getHistoryUser(history);
+        const userId = getUserId(user);
+        try {
+          if (userId) {
+            await addUserSearchHistory(userId).unwrap();
+          }
+        } catch {
+          // Ignore error
+        }
+        navigateToUser(user);
+      }
     },
-    [navigateToUser]
+    [addSearchHistory, addUserSearchHistory, navigateToUser]
   );
 
   const handleDeleteHistory = useCallback(
-    async (history: SearchHistory) => {
+    async (history: SearchHistory & { isText?: boolean }) => {
       const historyId = getHistoryId(history);
       if (!historyId) {
         return;
@@ -151,23 +196,42 @@ export default function ExplorePage() {
 
       setDeletingHistoryId(historyId);
       try {
-        await deleteSearchHistory({ id: historyId }).unwrap();
+        if (history.isText) {
+          await deleteSearchHistory(historyId).unwrap();
+        } else {
+          await deleteUserSearchHistory(historyId).unwrap();
+        }
       } catch {
         // Keep the current list visible if the backend cannot delete the item.
       } finally {
         setDeletingHistoryId("");
       }
     },
-    [deleteSearchHistory]
+    [deleteSearchHistory, deleteUserSearchHistory]
   );
 
   const handleClearHistory = useCallback(async () => {
     try {
-      await deleteSearchHistories().unwrap();
+      await Promise.all([
+        deleteSearchHistories().unwrap(),
+        deleteUserSearchHistories().unwrap(),
+      ]);
     } catch {
       // Keep recent searches visible if the backend cannot clear them.
     }
-  }, [deleteSearchHistories]);
+  }, [deleteSearchHistories, deleteUserSearchHistories]);
+
+  const handleSearchSubmit = useCallback(
+    async (value: string) => {
+      if (!value.trim()) return;
+      try {
+        await addSearchHistory(value.trim()).unwrap();
+      } catch {
+        // Ignore error
+      }
+    },
+    [addSearchHistory]
+  );
 
   return (
     <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-5 px-4 py-8 sm:px-6">
@@ -178,12 +242,16 @@ export default function ExplorePage() {
         </p>
       </div>
 
-      <SearchBar onDebouncedChange={handleDebouncedChange} />
+      <SearchBar
+        value={searchInputValue}
+        onDebouncedChange={handleDebouncedChange}
+        onSearchSubmit={handleSearchSubmit}
+      />
 
       <SearchResults
         query={query}
         users={users}
-        histories={historiesQuery.data ?? []}
+        histories={combinedHistories}
         isLoading={usersQuery.isLoading || usersQuery.isFetching}
         isError={usersQuery.isError}
         deletingHistoryId={deletingHistoryId}

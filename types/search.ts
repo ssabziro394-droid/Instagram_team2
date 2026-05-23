@@ -20,6 +20,11 @@ export type SearchUser = {
   subscriptionsCount?: number;
   isFollowing?: boolean;
   isFollowed?: boolean;
+  email?: string;
+  description?: string;
+  isVerified?: boolean;
+  verified?: boolean;
+  isFamous?: boolean;
 };
 
 export type SearchHistory = {
@@ -32,6 +37,7 @@ export type SearchHistory = {
   fullName?: string;
   searchText?: string;
   query?: string;
+  text?: string;
   createdAt?: string;
   user?: SearchUser;
   searchedUser?: SearchUser;

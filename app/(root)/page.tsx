@@ -1,7 +1,13 @@
+import { Suspense } from "react";
+import CreatePostModalGate from "@/components/create/CreatePostModalGate";
 
 export default function HomeFeed() {
   return (
     <div className="max-w-2xl mx-auto py-8 px-4 flex flex-col gap-6">
+      <Suspense fallback={null}>
+        <CreatePostModalGate />
+      </Suspense>
+
       <div className="border-b border-zinc-800 pb-4 mb-4">
         <h1 className="text-2xl font-bold tracking-tight">Лента</h1>
         <p className="text-zinc-400 text-sm">Здесь будут отображаться посты пользователей.</p>
