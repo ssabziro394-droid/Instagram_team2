@@ -1,197 +1,179 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import SearchBar from "@/components/search/SearchBar";
-import SearchResults from "@/components/search/SearchResults";
-import {
-  useAddSearchHistoryMutation,
-  useAddUserSearchHistoryMutation,
-  useDeleteSearchHistoriesMutation,
-  useDeleteSearchHistoryMutation,
-  useGetSearchHistoriesQuery,
-  useGetUsersQuery,
-} from "@/store/api/searchApi";
-import type { ProfileId } from "@/types/profile";
-import type { SearchHistory, SearchUser } from "@/types/search";
-
-function toIdString(id?: ProfileId) {
-  return id === undefined || id === null ? "" : String(id);
-}
-
-function getUserId(user?: SearchUser) {
-  return toIdString(user?.id ?? user?.userId);
-}
-
-function getHistoryId(history: SearchHistory) {
-  return toIdString(history.searchHistoryId ?? history.id);
-}
-
-function getUsername(user?: SearchUser) {
-  return user?.username ?? user?.userName ?? "";
-}
-
-function getDisplayName(user?: SearchUser) {
-  return (
-    user?.fullName ??
-    user?.name ??
-    [user?.firstName, user?.lastName].filter(Boolean).join(" ")
-  );
-}
-
-function getHistoryUser(history: SearchHistory): SearchUser {
-  return (
-    history.user ??
-    history.searchedUser ?? {
-      id: history.searchedUserId ?? history.userId,
-      username: history.username ?? history.userName ?? history.query,
-      userName: history.userName,
-      fullName: history.fullName ?? history.searchText,
-    }
-  );
-}
-
-function getProfileSlug(user: SearchUser) {
-  return getUsername(user) || getUserId(user);
-}
-
-function matchesQuery(user: SearchUser, query: string) {
-  const normalizedQuery = query.toLowerCase();
-  const searchableText = [
-    getUsername(user),
-    getDisplayName(user),
-    user.bio,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  return searchableText.includes(normalizedQuery);
-}
+import { useEffect, useState } from "react";
+import { useGetReelsQuery } from "@/store/api/reelsApi";
+import ExploreGrid from "@/components/reels/ExploreGrid";
+import ExploreReelModal from "@/components/reels/ExploreReelModal";
+import { Reel } from "@/components/reels/types";
+import { WifiOff, Film, RefreshCw } from "lucide-react";
 
 export default function ExplorePage() {
-  const router = useRouter();
-  const [query, setQuery] = useState("");
-  const [deletingHistoryId, setDeletingHistoryId] = useState("");
+  const [page, setPage] = useState(1);
+  const [reelsList, setReelsList] = useState<Reel[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [selectedReel, setSelectedReel] = useState<Reel | null>(null);
 
-  const usersQuery = useGetUsersQuery(
-    { search: query, pageSize: 20 },
-    { skip: query.length === 0 }
+  // Fetch Reels from the Swagger backend
+  const {
+    data: newReels,
+    isLoading,
+    isFetching,
+    isError,
+    refetch,
+  } = useGetReelsQuery(
+    { pageNumber: page, pageSize: 12 },
+    { refetchOnMountOrArgChange: true }
   );
-  const historiesQuery = useGetSearchHistoriesQuery();
-  const [addSearchHistory] = useAddSearchHistoryMutation();
-  const [addUserSearchHistory] = useAddUserSearchHistoryMutation();
-  const [deleteSearchHistory] = useDeleteSearchHistoryMutation();
-  const [deleteSearchHistories] = useDeleteSearchHistoriesMutation();
 
-  const users = useMemo(() => {
-    if (query.length === 0) {
-      return [];
+  // Append new paginated items to state
+  useEffect(() => {
+    if (newReels) {
+      if (newReels.length === 0) {
+        setHasMore(false);
+      } else {
+        setReelsList((prev) => {
+          // Prevent duplicates by checking item id
+          const existingIds = new Set(prev.map((r) => r.id));
+          const uniqueNew = newReels.filter((r) => !existingIds.has(r.id));
+          if (uniqueNew.length === 0) {
+            setHasMore(false);
+            return prev;
+          }
+          return [...prev, ...uniqueNew];
+        });
+      }
     }
+  }, [newReels]);
 
-    const source = usersQuery.data ?? [];
-    const filtered = source.filter((user) => matchesQuery(user, query));
-
-    return filtered.length > 0 ? filtered : source;
-  }, [query, usersQuery.data]);
-
-  const handleDebouncedChange = useCallback((value: string) => {
-    setQuery(value);
-  }, []);
-
-  const navigateToUser = useCallback(
-    (user: SearchUser) => {
-      const slug = getProfileSlug(user);
-      if (slug) {
-        router.push(`/${encodeURIComponent(slug)}`);
-      }
-    },
-    [router]
-  );
-
-  const handleSelectUser = useCallback(
-    async (user: SearchUser) => {
-      const userId = getUserId(user);
-      const username = getUsername(user);
-
-      try {
-        if (userId) {
-          await addUserSearchHistory({
-            userId,
-            searchedUserId: userId,
-          }).unwrap();
-        } else {
-          await addSearchHistory({
-            searchText: username || query,
-            query: username || query,
-          }).unwrap();
-        }
-      } catch {
-        // Navigation should still work if history persistence is unavailable.
-      }
-
-      navigateToUser(user);
-    },
-    [addSearchHistory, addUserSearchHistory, navigateToUser, query]
-  );
-
-  const handleSelectHistory = useCallback(
-    (history: SearchHistory) => {
-      navigateToUser(getHistoryUser(history));
-    },
-    [navigateToUser]
-  );
-
-  const handleDeleteHistory = useCallback(
-    async (history: SearchHistory) => {
-      const historyId = getHistoryId(history);
-      if (!historyId) {
-        return;
-      }
-
-      setDeletingHistoryId(historyId);
-      try {
-        await deleteSearchHistory({ id: historyId }).unwrap();
-      } catch {
-        // Keep the current list visible if the backend cannot delete the item.
-      } finally {
-        setDeletingHistoryId("");
-      }
-    },
-    [deleteSearchHistory]
-  );
-
-  const handleClearHistory = useCallback(async () => {
-    try {
-      await deleteSearchHistories().unwrap();
-    } catch {
-      // Keep recent searches visible if the backend cannot clear them.
+  const loadMore = () => {
+    if (!isFetching && hasMore) {
+      setPage((prev) => prev + 1);
     }
-  }, [deleteSearchHistories]);
+  };
 
+  const handleRetry = () => {
+    setPage(1);
+    setReelsList([]);
+    setHasMore(true);
+    refetch();
+  };
+
+  const handleReelClick = (reel: Reel) => {
+    setSelectedReel(reel);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedReel(null);
+  };
+
+  // Loading State (Initial page load)
+  if (isLoading && page === 1) {
+    return (
+      <div className="w-full min-h-screen bg-black flex flex-col items-center justify-center">
+        {/* Shimmer skeleton grid loader */}
+        <div className="w-full max-w-5xl px-4 py-8 grid grid-cols-3 gap-1 md:gap-4 lg:gap-6 animate-pulse">
+          {[...Array(9)].map((_, i) => (
+            <div
+              key={i}
+              className="aspect-[9/16] w-full bg-zinc-900 rounded-md sm:rounded-lg"
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Error State (Initial load failed due to API connection issue)
+  if (isError && reelsList.length === 0) {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://instagram-api.softclub.tj";
+    return (
+      <div className="w-full min-h-screen bg-black flex flex-col items-center justify-center text-white px-4">
+        <div className="w-full max-w-md bg-zinc-950 rounded-2xl border border-zinc-900 p-8 text-center shadow-2xl relative overflow-hidden">
+          <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] rounded-full bg-purple-900/10 blur-[80px] pointer-events-none" />
+          <div className="absolute -bottom-[10%] -right-[10%] w-[50%] h-[50%] rounded-full bg-pink-900/10 blur-[80px] pointer-events-none" />
+
+          <div className="w-16 h-16 rounded-full bg-red-950/30 border border-red-500/25 flex items-center justify-center mb-6 mx-auto animate-pulse z-10">
+            <WifiOff className="w-8 h-8 text-red-500" />
+          </div>
+
+          <h2 className="text-xl font-bold mb-2 tracking-tight z-10">API Connection Failed</h2>
+          <p className="text-sm text-zinc-400 mb-6 leading-relaxed z-10">
+            Could not fetch media items. Please check if the backend API server is online and try again.
+          </p>
+
+          <div className="w-full bg-zinc-900/50 rounded-xl p-4 mb-6 border border-zinc-800 text-left font-mono text-[11px] z-10">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center text-zinc-500">
+                <span>Endpoint:</span>
+                <span className="text-zinc-300 font-semibold">GET /Post/get-reels</span>
+              </div>
+              <div className="flex flex-col gap-0.5 text-zinc-500">
+                <span>Target API:</span>
+                <span className="text-sky-400 break-all select-all font-medium mt-0.5">{apiUrl}</span>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={handleRetry}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-650 rounded-xl font-semibold text-sm hover:opacity-95 active:scale-95 transition-all text-white cursor-pointer z-10"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Retry Connection</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty State (Initial load returned 0 posts)
+  if (reelsList.length === 0) {
+    return (
+      <div className="w-full min-h-screen bg-black flex flex-col items-center justify-center text-white px-4">
+        <div className="w-full max-w-md bg-zinc-950 rounded-2xl border border-zinc-900 p-8 text-center shadow-2xl relative overflow-hidden">
+          <div className="w-16 h-16 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-6 mx-auto">
+            <Film className="w-8 h-8 text-zinc-500" />
+          </div>
+
+          <h2 className="text-xl font-bold mb-2 tracking-tight">No Media Found</h2>
+          <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
+            The API returned an empty list. Upload some Reels first or seed the database.
+          </p>
+
+          <button
+            onClick={handleRetry}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 rounded-xl font-semibold text-sm active:scale-95 transition-all text-white cursor-pointer"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Refresh Page</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Normal Explore grid layout
   return (
-    <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-5 px-4 py-8 sm:px-6">
-      <div className="border-b border-zinc-800 pb-5">
-        <h1 className="text-2xl font-bold tracking-tight text-white">Search</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Find people and return to recent profile searches.
-        </p>
+    <div className="w-full min-h-screen bg-black text-white">
+      <div className="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        {/* Explore Grid */}
+        <ExploreGrid
+          reels={reelsList}
+          onReelClick={handleReelClick}
+          loadMore={loadMore}
+          hasMore={hasMore}
+          isLoadingMore={isFetching}
+        />
       </div>
 
-      <SearchBar onDebouncedChange={handleDebouncedChange} />
-
-      <SearchResults
-        query={query}
-        users={users}
-        histories={historiesQuery.data ?? []}
-        isLoading={usersQuery.isLoading || usersQuery.isFetching}
-        isError={usersQuery.isError}
-        deletingHistoryId={deletingHistoryId}
-        onSelectUser={handleSelectUser}
-        onSelectHistory={handleSelectHistory}
-        onDeleteHistory={handleDeleteHistory}
-        onClearHistory={handleClearHistory}
-      />
+      {/* Reel detailed modal overlay */}
+      {selectedReel && (
+        <ExploreReelModal
+          isOpen={!!selectedReel}
+          onClose={handleCloseModal}
+          reel={selectedReel}
+        />
+      )}
     </div>
   );
 }
