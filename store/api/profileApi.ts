@@ -52,8 +52,11 @@ function mapSwaggerProfile(profile: UserProfileSwaggerDto): UserProfile {
   const fullName = [profile.firstName, profile.lastName]
     .filter(Boolean)
     .join(" ");
+  const id = profile.id ?? profile.userId ?? profile.userProfileId;
 
   return {
+    id,
+    userId: profile.userId ?? profile.id ?? profile.userProfileId,
     username: profile.userName,
     userName: profile.userName,
     avatar: profile.image,
@@ -75,6 +78,68 @@ function mapSwaggerProfile(profile: UserProfileSwaggerDto): UserProfile {
     locationId: profile.locationId,
     dob: profile.dob,
     occupation: profile.occupation,
+    // isFollowing comes separately from getIsFollowUserProfileById
+    isFollowing: (profile as any).isFollowing ?? false,
+  };
+}
+
+function getUserIdFromStorageToken(): string | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+  const token = localStorage.getItem("token");
+  if (!token) {
+    return undefined;
+  }
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return undefined;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      window.atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    const payload = JSON.parse(jsonPayload);
+    const userId = 
+      payload.sid ?? 
+      payload.id ?? 
+      payload.userId ?? 
+      payload.sub ?? 
+      payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] ??
+      payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/sid"];
+    return userId ? String(userId) : undefined;
+  } catch (error) {
+    console.error("Error decoding token in mapMyProfileResponse:", error);
+    return undefined;
+  }
+}
+
+function mapMyProfileResponse(response: unknown): UserProfile {
+  console.log("profile:", response);
+
+  const data =
+    isRecord(response) && isRecord(response.data) ? response.data : response;
+  const mappedProfile = mapSwaggerProfile(data as UserProfileSwaggerDto);
+  const wrapperId = isRecord(response) ? response.id ?? response.userId : undefined;
+  const dataId = isRecord(data) ? data.id ?? data.userId : undefined;
+  
+  const tokenUserId = getUserIdFromStorageToken();
+  const id = mappedProfile.id ?? wrapperId ?? dataId ?? tokenUserId;
+  const userId = mappedProfile.userId ?? wrapperId ?? dataId ?? tokenUserId;
+
+  return {
+    ...mappedProfile,
+    id: id as ProfileId | undefined,
+    userId: userId as ProfileId | undefined,
+    data: isRecord(data)
+      ? {
+          id: data.id as ProfileId | undefined,
+          userId: data.userId as ProfileId | undefined,
+        }
+      : undefined,
   };
 }
 
@@ -111,38 +176,64 @@ function imageProfileBody(request: FormData | UpdateUserImageProfileRequest) {
   const formData = new FormData();
   const file = request.file ?? request.image;
   if (file) {
-    formData.append("file", file);
+    formData.append("imageFile", file);
   }
 
   return formData;
 }
 
 export const profileApi = baseApi.injectEndpoints({
+  overrideExisting: process.env.NODE_ENV === "development",
   endpoints: (builder) => ({
     getUserProfileById: builder.query<UserProfile, ProfileId>({
       query: (id) => ({
         url: "UserProfile/get-user-profile-by-id",
         params: profileIdParams(id),
       }),
-      transformResponse: (response: unknown) =>
-        unwrapResponse<UserProfile>(response),
+      transformResponse: (response: unknown, meta, arg) => {
+        const mapped = mapMyProfileResponse(response);
+        return {
+          ...mapped,
+          id: arg,
+          userId: arg,
+        };
+      },
       providesTags: (_result, _error, id) => [{ type: "User", id }],
     }),
     getMyProfile: builder.query<UserProfile, void>({
       query: () => "UserProfile/get-my-profile",
       transformResponse: (response: UserProfileResponse) =>
-        mapSwaggerProfile(response.data),
+        mapMyProfileResponse(response),
       providesTags: [{ type: "User", id: "ME" }],
     }),
     updateUserProfile: builder.mutation<
       UserProfile,
       UpdateUserProfileRequest
     >({
-      query: (body) => ({
-        url: "UserProfile/update-user-profile",
-        method: "PUT",
-        body,
-      }),
+      query: (body) => {
+        let genderId = 0;
+        if (body.gender !== undefined) {
+          if (typeof body.gender === "number") {
+            genderId = body.gender;
+          } else {
+            const val = String(body.gender).trim();
+            if (val === "Женский" || val === "1") {
+              genderId = 1;
+            } else if (val === "Не указано" || val === "2") {
+              genderId = 2;
+            }
+          }
+        }
+
+        return {
+          url: "UserProfile/update-user-profile",
+          method: "PUT",
+          body: {
+            about: body.about ?? body.bio ?? "",
+            gender: genderId,
+          },
+        };
+      },
       transformResponse: (response: unknown) =>
         unwrapResponse<UserProfile>(response),
       invalidatesTags: [{ type: "User", id: "ME" }],
@@ -169,6 +260,25 @@ export const profileApi = baseApi.injectEndpoints({
         unwrapResponse<ApiMessageResponse>(response),
       invalidatesTags: [{ type: "User", id: "ME" }],
     }),
+    getIsFollowUserProfileById: builder.query<boolean, string>({
+      query: (followingUserId) => ({
+        url: "UserProfile/get-is-follow-user-profile-by-id",
+        params: { followingUserId },
+      }),
+      transformResponse: (response: unknown) => {
+        console.log("[isFollow API raw response]:", JSON.stringify(response));
+        // API may return: { data: true }, { data: false }, true, false, "true", "false"
+        let val: unknown = response;
+        if (typeof val === "object" && val !== null) {
+          val = (val as any).data ?? (val as any).result ?? (val as any).value ?? val;
+        }
+        // Handle string "true"/"false"
+        if (val === "true" || val === true || val === 1) return true;
+        if (val === "false" || val === false || val === 0 || val === null) return false;
+        return Boolean(val);
+      },
+      providesTags: (_result, _error, id) => [{ type: "User" as const, id: `FOLLOW_${id}` }],
+    }),
     getPostFavorites: builder.query<ProfilePost[], ProfileListQuery | ProfileId | void>({
       query: (query) => ({
         url: "UserProfile/get-post-favorites",
@@ -182,23 +292,41 @@ export const profileApi = baseApi.injectEndpoints({
       query: (body) => ({
         url: "FollowingRelationShip/add-following-relation-ship",
         method: "POST",
-        body,
         params: relationshipParams(body),
       }),
       transformResponse: (response: unknown) =>
         unwrapResponse<ApiMessageResponse>(response),
-      invalidatesTags: [{ type: "User", id: "LIST" }],
+      invalidatesTags: (result, error, arg) => {
+        const targetId = arg.followingUserId ?? arg.followingId ?? arg.targetUserId ?? arg.userId;
+        return [
+          { type: "User" as const, id: "LIST" },
+          { type: "User" as const, id: "ME" },
+          ...(targetId ? [
+            { type: "User" as const, id: targetId },
+            { type: "User" as const, id: `FOLLOW_${targetId}` },
+          ] : []),
+        ];
+      },
     }),
     profileUnfollowUser: builder.mutation<ApiMessageResponse, FollowUserRequest>({
       query: (body) => ({
         url: "FollowingRelationShip/delete-following-relation-ship",
         method: "DELETE",
-        body,
         params: relationshipParams(body),
       }),
       transformResponse: (response: unknown) =>
         unwrapResponse<ApiMessageResponse>(response),
-      invalidatesTags: [{ type: "User", id: "LIST" }],
+      invalidatesTags: (result, error, arg) => {
+        const targetId = arg.followingUserId ?? arg.followingId ?? arg.targetUserId ?? arg.userId;
+        return [
+          { type: "User" as const, id: "LIST" },
+          { type: "User" as const, id: "ME" },
+          ...(targetId ? [
+            { type: "User" as const, id: targetId },
+            { type: "User" as const, id: `FOLLOW_${targetId}` },
+          ] : []),
+        ];
+      },
     }),
     profileGetSubscribers: builder.query<UserProfile[], ProfileListQuery | ProfileId>({
       query: (query) => ({
@@ -226,6 +354,7 @@ export const {
   useProfileFollowUserMutation,
   useGetMyProfileQuery,
   useGetPostFavoritesQuery,
+  useGetIsFollowUserProfileByIdQuery,
   useProfileGetSubscribersQuery,
   useProfileGetSubscriptionsQuery,
   useGetUserProfileByIdQuery,

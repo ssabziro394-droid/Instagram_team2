@@ -19,6 +19,8 @@ import {
   Settings,
   LogOut
 } from "lucide-react";
+import { useGetMyProfileQuery } from "@/store/api/profileApi";
+import { getUsernameFromToken } from "@/lib/utils";
 import { logout } from "@/store/slices/authSlice";
 
 function InstagramIcon({ className }: { className?: string }) {
@@ -47,6 +49,13 @@ export default function Sidebar() {
   const dispatch = useAppDispatch();
   const theme = useAppSelector((state) => state.theme.theme);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const { data: myProfile } = useGetMyProfileQuery();
+
+  const dynamicUsername =
+    myProfile?.username ??
+    myProfile?.userName ??
+    getUsernameFromToken() ??
+    "username";
 
   const navItems = [
     { label: "Home", href: "/", icon: Home, animateClass: "group-hover:animate-home-bounce" },
@@ -55,9 +64,10 @@ export default function Sidebar() {
     { label: "Reels", href: "/reels", icon: Film, animateClass: "group-hover:animate-reel-wobble" },
     { label: "Messages", href: "/messages", icon: MessageSquare, animateClass: "group-hover:animate-message-shake" },
     { label: "Notifications", href: "#", icon: Heart, animateClass: "group-hover:animate-heartbeat" },
-    { label: "Create", href: "/create", icon: PlusSquare, animateClass: "group-hover:animate-create-spin" },
-    { label: "Profile", href: "/username", icon: User, animateClass: "group-hover:scale-110" },
+    { label: "Create", href: "/?create=true", icon: PlusSquare, animateClass: "group-hover:animate-create-spin" },
+    { label: "Profile", href: `/${dynamicUsername}`, icon: User, animateClass: "group-hover:scale-110" },
   ];
+
 
   return (
     <div className="flex flex-col h-full p-4 justify-between bg-ig-bg border-r border-ig-border transition-colors duration-300">

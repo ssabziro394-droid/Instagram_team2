@@ -9,17 +9,27 @@ import {
   Film, 
   User 
 } from "lucide-react";
+import { useGetMyProfileQuery } from "@/store/api/profileApi";
+import { getUsernameFromToken } from "@/lib/utils";
 
 export default function BottomBar() {
   const pathname = usePathname();
+  const { data: myProfile } = useGetMyProfileQuery();
+
+  const dynamicUsername =
+    myProfile?.username ??
+    myProfile?.userName ??
+    getUsernameFromToken() ??
+    "username";
 
   const navItems = [
     { href: "/", icon: Home },
     { href: "/explore", icon: Search },
     { href: "/?create=true", icon: PlusSquare },
     { href: "/reels", icon: Film },
-    { href: "/username", icon: User }, // Username will be dynamic later
+    { href: `/${dynamicUsername}`, icon: User },
   ];
+
 
   return (
     <nav className="flex h-full items-center justify-around px-4">
