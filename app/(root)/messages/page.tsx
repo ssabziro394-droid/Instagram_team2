@@ -1,26 +1,40 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
+import { ChatSidebar } from "@/components/chat/ChatSidebar";
+import { ChatArea } from "@/components/chat/ChatArea";
+import { NewMessageModal } from "@/components/chat/NewMessageModal";
 
 export default function MessagesPage() {
+  const [activeChatId, setActiveChatId] = useState<number | null>(null);
+  const [isNewMessageModalOpen, setIsNewMessageModalOpen] = useState(false);
+
+  console.log(isNewMessageModalOpen);
+
   return (
-    <div className="h-full flex">
-      {/* Conversations List */}
-      <div className="w-80 border-r border-zinc-800 flex flex-col">
-        <div className="p-6 border-b border-zinc-800">
-          <h1 className="text-xl font-bold">Сообщения</h1>
-        </div>
-        <div className="flex-1 flex flex-col justify-center items-center text-zinc-500 text-sm p-4 text-center">
-          Нет активных чатов
-        </div>
-      </div>
-      
-      {/* Active Chat view */}
-      <div className="flex-1 flex flex-col justify-center items-center bg-black text-center p-6">
-        <h2 className="text-lg font-semibold">Ваши сообщения</h2>
-        <p className="text-zinc-500 text-sm mt-1">Отправляйте личные фото и сообщения другу или группе.</p>
-        <button className="mt-4 bg-sky-500 hover:bg-sky-600 text-white rounded-lg px-4 py-2 text-sm font-semibold transition">
-          Отправить сообщение
-        </button>
-      </div>
+    <div className="flex h-[calc(100vh-4rem)] md:h-screen w-full bg-zinc-950 text-zinc-50 overflow-hidden">
+      {/* Sidebar - Left Column */}
+      <ChatSidebar
+        activeChatId={activeChatId}
+        onSelectChat={(chatId) => setActiveChatId(chatId)}
+      />
+
+      {/* Chat Area - Right Column */}
+      <ChatArea
+        chatId={activeChatId}
+        onNewMessageTrigger={() => setIsNewMessageModalOpen(true)}
+        onBack={() => setActiveChatId(null)}
+      />
+
+      {/* New Message Modal - Triggered from Empty State */}
+      <NewMessageModal
+        isOpen={isNewMessageModalOpen}
+        onClose={() => setIsNewMessageModalOpen(false)}
+        onChatCreated={(chatId) => {
+          setActiveChatId(chatId);
+          setIsNewMessageModalOpen(false);
+        }}
+      />
     </div>
   );
 }
