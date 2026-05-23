@@ -8,10 +8,14 @@ function getStoredToken() {
     return null;
   }
 
-  return localStorage.getItem("token");
+  return (
+    localStorage.getItem("token") ||
+    localStorage.getItem("accessToken") ||
+    localStorage.getItem("access_token")
+  );
 }
 
-// This is a placeholder base API using MockAPI or similar backend
+// Base API using Swagger API backend
 export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
