@@ -19,6 +19,20 @@ interface ShareUserGridProps {
   selectedUsernames: string[];
 }
 
+const DefaultAvatar = ({ className = "w-[72px] h-[72px]" }: { className?: string }) => (
+  <div
+    className={`${className} rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 dark:text-zinc-500 overflow-hidden shrink-0 border border-zinc-200 dark:border-zinc-800`}
+  >
+    <svg
+      className="w-2/3 h-2/3 text-zinc-400 dark:text-zinc-500"
+      fill="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+    </svg>
+  </div>
+);
+
 export const FALLBACK_USERS: User[] = [
   {
     id: "fb-1",
@@ -135,16 +149,24 @@ export default function ShareUserGrid({
                 >
                   {/* Avatar container */}
                   <div className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={user.avatarUrl}
-                      alt={user.username}
-                      className={`w-[72px] h-[72px] rounded-full object-cover border transition-all duration-150 group-hover:scale-[1.03] group-active:scale-[0.96] ${
-                        isSelected 
-                          ? "border-blue-500 p-[1.5px] scale-[1.02]" 
-                          : "border-zinc-200 dark:border-zinc-800"
-                      }`}
-                    />
+                    {user.avatarUrl && !user.avatarUrl.includes("dicebear") ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={user.avatarUrl}
+                        alt={user.username}
+                        className={`w-[72px] h-[72px] rounded-full object-cover border transition-all duration-150 group-hover:scale-[1.03] group-active:scale-[0.96] ${
+                          isSelected 
+                            ? "border-blue-500 p-[1.5px] scale-[1.02]" 
+                            : "border-zinc-200 dark:border-zinc-800"
+                        }`}
+                      />
+                    ) : (
+                      <div className={`transition-all duration-150 group-hover:scale-[1.03] group-active:scale-[0.96] ${
+                        isSelected ? "border-blue-500 p-[1.5px] scale-[1.02] border rounded-full" : ""
+                      }`}>
+                        <DefaultAvatar />
+                      </div>
+                    )}
                     
                     {/* Blue check badge overlay bottom-right */}
                     {isSelected && (

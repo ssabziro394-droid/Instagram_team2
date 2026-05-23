@@ -52,9 +52,6 @@ const encodeUrlPath = (fullUrl: string): string => {
 // Helper to resolve and clean relative or absolute asset URLs (images/videos)
 const resolveAssetUrl = (rawUrl: string, usernameFallback?: string): string => {
   if (!rawUrl) {
-    if (usernameFallback) {
-      return `https://api.dicebear.com/7.x/adventurer/svg?seed=${usernameFallback}`;
-    }
     return "";
   }
 
@@ -251,8 +248,24 @@ export const reelsApi = baseApi.injectEndpoints({
             ]
           : [{ type: "User", id: "LIST" }],
     }),
+    likePost: builder.mutation<any, number>({
+      query: (postId) => ({
+        url: `/Post/like-post`,
+        method: "POST",
+        params: { postId },
+      }),
+      invalidatesTags: (result, error, arg) => [{ type: "Reel", id: String(arg) }, { type: "Post", id: String(arg) }],
+    }),
+    addComment: builder.mutation<any, { postId: number; comment: string }>({
+      query: (body) => ({
+        url: `/Post/add-comment`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: (result, error, arg) => [{ type: "Reel", id: String(arg.postId) }, { type: "Post", id: String(arg.postId) }],
+    }),
   }),
   overrideExisting: false,
 });
 
-export const { useGetReelsQuery, useGetUsersQuery } = reelsApi;
+export const { useGetReelsQuery, useGetUsersQuery, useLikePostMutation, useAddCommentMutation } = reelsApi;

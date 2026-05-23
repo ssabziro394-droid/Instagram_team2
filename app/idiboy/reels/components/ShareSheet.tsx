@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check } from "lucide-react";
 import { useGetUsersQuery } from "@/store/api/reelsApi";
+import { useCreateChatMutation, useSendMessageMutation } from "@/store/api/chatApi";
 import ShareUserGrid from "./ShareUserGrid";
 import ShareActionBar from "./ShareActionBar";
 
@@ -56,13 +57,59 @@ export default function ShareSheet({
     });
   };
 
-  // Purely local simulation flow for sending (strictly following user constraints)
-  const handleSendIndividually = () => {
-    showToast("Sent locally");
+  const [createChat] = useCreateChatMutation();
+  const [sendMessage] = useSendMessageMutation();
 
-    // Clear selection and message input
-    setSelectedUsers([]);
-    setMessageText("");
+  const handleSendIndividually = async () => {
+    if (selectedUsers.length === 0) return;
+    
+    // Construct the Reel URL as the message
+    const url = `${window.location.origin}/reels?id=${reelId}`;
+    const textToSend = messageText.trim() ? `${messageText}\n\n${url}` : url;
+
+    try {
+      showToast("Отправка...");
+      
+      // Send to each selected user
+      for (const user of selectedUsers) {
+        // Prevent sending to mock fallback users
+        if (user.id.startsWith("fb-")) {
+          console.warn("Cannot send to local fallback user:", user.username);
+          showToast(`Не удалось отправить ${user.username} (локальный)`);
+          continue;
+        }
+
+        try {
+          // 1. Create/Get chat ID for this user
+          const chatRes = await createChat({ receiverUserId: String(user.id) }).unwrap();
+          
+          // Handle both wrapped {data: 123} and direct 123 responses
+          const chatId = typeof chatRes === 'object' && chatRes !== null && 'data' in chatRes 
+            ? chatRes.data 
+            : chatRes;
+
+          if (!chatId) {
+            throw new Error("Chat ID not returned from server");
+          }
+
+          // 2. Send the message via PUT multipart/form-data
+          await sendMessage({ chatId: Number(chatId), messageText: textToSend }).unwrap();
+        } catch (err: any) {
+          console.error("Failed to send to user", user.username, err);
+          showToast(`Ошибка: ${err?.data?.title || err?.status || 'Сбой API'}`);
+          throw err; // Break out to the outer catch if one fails
+        }
+      }
+      
+      showToast("Успешно отправлено!");
+      setSelectedUsers([]);
+      setMessageText("");
+      
+      // Give a tiny delay before closing so user sees the "Sent" toast
+      setTimeout(() => onClose(), 1500);
+    } catch (error) {
+      console.error("Overall error sending reel:", error);
+    }
   };
 
   const handleCreateGroup = () => {

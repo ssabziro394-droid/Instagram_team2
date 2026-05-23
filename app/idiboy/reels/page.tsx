@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useGetReelsQuery } from "@/store/api/reelsApi";
+import { useGetReelsQuery, useLikePostMutation, useAddCommentMutation } from "@/store/api/reelsApi";
 import ReelCard from "./components/ReelCard";
 import ReelSkeleton from "@/components/reels/ReelSkeleton";
 import { Reel, Comment } from "./types";
@@ -15,6 +15,9 @@ export default function IdiboyReelsPage() {
     { pageNumber: 1, pageSize: 10 },
     { refetchOnMountOrArgChange: true }
   );
+
+  const [likePost] = useLikePostMutation();
+  const [addComment] = useAddCommentMutation();
 
   // 2. Local state to manage interactive actions locally (likes, saves, comments)
   const [reelsList, setReelsList] = useState<Reel[]>([]);
@@ -95,7 +98,8 @@ export default function IdiboyReelsPage() {
   }, [reelsList]);
 
   // Local interaction handlers
-  const handleLike = (reelId: string) => {
+  const handleLike = async (reelId: string) => {
+    // Optimistic update
     setReelsList((prevList) =>
       prevList.map((reel) => {
         if (reel.id === reelId) {
@@ -109,6 +113,16 @@ export default function IdiboyReelsPage() {
         return reel;
       })
     );
+
+    // Global API Call
+    try {
+      const numericId = parseInt(reelId, 10);
+      if (!isNaN(numericId)) {
+        await likePost(numericId).unwrap();
+      }
+    } catch (err) {
+      console.error("Failed to like post", err);
+    }
   };
 
   const handleSave = (reelId: string) => {
@@ -142,35 +156,45 @@ export default function IdiboyReelsPage() {
     );
   };
 
-  const handleAddComment = (reelId: string, text: string) => {
-    const newCommentObj: Comment = {
-      id: `new-comment-${Date.now()}`,
-      username: "current_user",
-      avatarUrl: "https://api.dicebear.com/7.x/adventurer/svg?seed=current_user",
-      text,
-      timestamp: "1с",
-      likesCount: 0,
-      isLiked: false,
-      replies: [],
-    };
+  const handleAddComment = async (reelId: string, text: string) => {
+    // Global API Call
+    try {
+      const numericId = parseInt(reelId, 10);
+      if (!isNaN(numericId)) {
+        await addComment({ postId: numericId, comment: text }).unwrap();
+      }
 
-    setCommentsMap((prevMap) => ({
-      ...prevMap,
-      [reelId]: [...(prevMap[reelId] || []), newCommentObj],
-    }));
+      const newCommentObj: Comment = {
+        id: `new-comment-${Date.now()}`,
+        username: "current_user",
+        avatarUrl: "https://api.dicebear.com/7.x/adventurer/svg?seed=current_user",
+        text,
+        timestamp: "1с",
+        likesCount: 0,
+        isLiked: false,
+        replies: [],
+      };
 
-    // Update comment count on reel card
-    setReelsList((prevList) =>
-      prevList.map((reel) => {
-        if (reel.id === reelId) {
-          return {
-            ...reel,
-            commentsCount: reel.commentsCount + 1,
-          };
-        }
-        return reel;
-      })
-    );
+      setCommentsMap((prevMap) => ({
+        ...prevMap,
+        [reelId]: [...(prevMap[reelId] || []), newCommentObj],
+      }));
+
+      // Update comment count on reel card
+      setReelsList((prevList) =>
+        prevList.map((reel) => {
+          if (reel.id === reelId) {
+            return {
+              ...reel,
+              commentsCount: reel.commentsCount + 1,
+            };
+          }
+          return reel;
+        })
+      );
+    } catch (err) {
+      console.error("Failed to add comment", err);
+    }
   };
 
   const handleVideoEnded = () => {
