@@ -251,8 +251,193 @@ export const reelsApi = baseApi.injectEndpoints({
             ]
           : [{ type: "User", id: "LIST" }],
     }),
+    /**
+     * getPostById: Fetches a single post/reel's detailed information by its ID.
+     * Contains validation logic to check for backend success, safely parses assets URLs,
+     * and maps comments list into a unified standard interface.
+     */
+    getPostById: builder.query<Reel | null, { postId: string | number }>({
+      query: ({ postId }) => ({
+        url: `/Post/get-post-by-id`,
+        params: { postId },
+      }),
+      transformResponse: (response: any): Reel | null => {
+        if (!response) return null;
+
+        // Validation 1: If the response envelope declares an error, skip parsing.
+        // This ensures the application falls back gracefully to grid data on error.
+        if (
+          response.statusCode >= 400 ||
+          (response.errors && response.errors.length > 0)
+        ) {
+          return null;
+        }
+
+        // Validation 2: Ensure data field is defined and matches an object format.
+        const item = response.data !== undefined ? response.data : response;
+        if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+
+        // Validation 3: Ensure the post has a valid numeric ID to prevent undefined references.
+        const rawId = item.postId || item.id;
+        if (rawId === undefined || rawId === null) {
+          return null;
+        }
+        const id = String(rawId);
+
+        // Resolve media URLs using reels resolution helper (maps relative upload paths to /images)
+        const rawVideo =
+          item.videoUrl ||
+          item.video ||
+          item.images ||
+          item.image ||
+          item.url ||
+          item.file ||
+          item.videoPath ||
+          "";
+        const videoUrl = resolveAssetUrl(rawVideo);
+
+        // Resolve creator details
+        const username =
+          item.userName ||
+          item.username ||
+          item.creatorName ||
+          (item.creator && (item.creator.username || item.creator.userName)) ||
+          `user_${id}`;
+
+        const rawAvatar =
+          item.userImage ||
+          item.userAvatar ||
+          item.avatar ||
+          item.avatarUrl ||
+          (item.creator && (item.creator.avatarUrl || item.creator.avatar)) ||
+          "";
+        const avatarUrl = resolveAssetUrl(rawAvatar, username);
+
+        // Resolve counts
+        const likesCount = Number(item.postLikeCount ?? item.likesCount ?? item.likes ?? item.likeCount ?? 0);
+        const commentsCount = Number(item.commentCount ?? item.commentsCount ?? item.comments ?? item.commentCount ?? 0);
+
+        const caption =
+          item.caption ||
+          item.title ||
+          item.content ||
+          item.description ||
+          "No caption provided";
+
+        // Map comments returned from backend into unified Comment schema
+        const rawComments = item.comments || item.postComments || item.commentList || [];
+        const comments = Array.isArray(rawComments)
+          ? rawComments.map((c: any) => ({
+              id: String(c.commentId || c.id || Math.random()),
+              username: c.userName || c.username || "user",
+              avatarUrl: resolveAssetUrl(c.userImage || c.avatar || c.avatarUrl || "", c.userName || c.username),
+              text: c.commentText || c.text || "",
+              timestamp: c.dateCreated || c.createdAt || "1s",
+              likesCount: Number(c.likesCount || 0),
+            }))
+          : [];
+
+        return {
+          id,
+          videoUrl,
+          creator: {
+            id: item.creatorId || item.userId || "",
+            username,
+            avatarUrl,
+            isFollowing: !!(item.isFollowing ?? item.creator?.isFollowing ?? false),
+          },
+          caption,
+          audioName: item.audioName || item.audio || `@${username} original audio`,
+          likesCount,
+          commentsCount,
+          isLiked: !!(item.postLike ?? item.isLiked ?? false),
+          isSaved: !!(item.postFavorite ?? item.isSaved ?? false),
+          comments,
+        };
+      },
+      providesTags: (result, error, arg) => [{ type: "Reel", id: String(arg.postId) }],
+    }),
+    /**
+     * likePost: Likes or unlikes a post.
+     * Invalidates the active Reel tag to trigger reactive UI updates.
+     */
+    likePost: builder.mutation<any, { postId: string | number }>({
+      query: ({ postId }) => ({
+        url: `/Post/like-post`,
+        method: "POST",
+        params: { postId: Number(postId) },
+      }),
+      invalidatesTags: (result, error, arg) => [
+        { type: "Reel", id: String(arg.postId) },
+        { type: "Reel", id: "LIST" },
+      ],
+    }),
+    /**
+     * addComment: Submits a comment string to a specific post.
+     */
+    addComment: builder.mutation<any, { postId: string | number; commentText: string }>({
+      query: ({ postId, commentText }) => ({
+        url: `/Post/add-comment`,
+        method: "POST",
+        body: {
+          postId: Number(postId),
+          comment: commentText,
+        },
+      }),
+      invalidatesTags: (result, error, arg) => [
+        { type: "Reel", id: String(arg.postId) },
+        { type: "Reel", id: "LIST" },
+      ],
+    }),
+    /**
+     * deleteComment: Removes an authored comment.
+     */
+    deleteComment: builder.mutation<any, { commentId: string | number; postId?: string | number }>({
+      query: ({ commentId }) => ({
+        url: `/Post/delete-comment`,
+        method: "DELETE",
+        params: { commentId: Number(commentId) },
+      }),
+      invalidatesTags: (result, error, arg) => {
+        const tags: any[] = [];
+        if (arg.postId) {
+          tags.push({ type: "Reel", id: String(arg.postId) });
+        }
+        tags.push({ type: "Reel", id: "LIST" });
+        return tags;
+      },
+    }),
+    addPostFavorite: builder.mutation<any, { postId: string | number }>({
+      query: ({ postId }) => ({
+        url: `/Post/add-post-favorite`,
+        method: "POST",
+        body: {
+          postId: Number(postId),
+        },
+      }),
+      invalidatesTags: (result, error, arg) => [
+        { type: "Reel", id: String(arg.postId) },
+        { type: "Reel", id: "LIST" },
+      ],
+    }),
+    viewPost: builder.mutation<any, { postId: string | number }>({
+      query: ({ postId }) => ({
+        url: `/Post/view-post`,
+        method: "POST",
+        params: { postId: Number(postId) },
+      }),
+    }),
   }),
   overrideExisting: false,
 });
 
-export const { useGetReelsQuery, useGetUsersQuery } = reelsApi;
+export const {
+  useGetReelsQuery,
+  useGetUsersQuery,
+  useGetPostByIdQuery,
+  useLikePostMutation,
+  useAddCommentMutation,
+  useDeleteCommentMutation,
+  useAddPostFavoriteMutation,
+  useViewPostMutation,
+} = reelsApi;

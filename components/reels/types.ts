@@ -13,6 +13,7 @@ export interface Reel {
   commentsCount: number;
   isLiked: boolean;
   isSaved: boolean;
+  comments?: Comment[];
 }
 
 export interface Comment {

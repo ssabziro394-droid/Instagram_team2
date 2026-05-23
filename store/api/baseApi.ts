@@ -34,7 +34,19 @@ const baseQueryWithReauth: BaseQueryFn<
 // Base API using Swagger API backend
 export const baseApi = createApi({
   reducerPath: "api",
-  baseQuery: baseQueryWithReauth,
-  tagTypes: ["Post", "User", "Reel", "Comment", "Following"],
+  baseQuery: fetchBaseQuery({
+    baseUrl:
+      // here: силкаи запрос кати тугри намегирад, барои хавай ин силкара мондм
+      API_BASE_URL,
+    prepareHeaders: (headers, { getState }) => {
+      //here: @TODO(Team Lead): Added token injection logic here. Please review and approve.
+      const token = (getState() as RootState).auth?.token ?? getStoredToken();
+      if (token) {
+        headers.set("authorization", `Bearer ${token}`);
+      }
+      return headers;
+    },
+  }),
+  tagTypes: ["Post", "User", "Reel", "Comment"],
   endpoints: () => ({}),
 });
