@@ -11,7 +11,7 @@ import {
   MoreHorizontal, 
   Smile 
 } from "lucide-react";
-import { Post, useLikePostMutation, useAddCommentMutation } from "@/store/api/feedApi";
+import { Post, useLikePostMutation, useAddCommentMutation, useAddPostFavoriteMutation } from "@/store/api/feedApi";
 import { getFileUrl } from "@/lib/file";
 import { cn, formatRelativeTime } from "@/lib/utils";
 
@@ -23,6 +23,7 @@ interface PostCardProps {
 export default function PostCard({ post, onViewDetails }: PostCardProps) {
   const [likePost] = useLikePostMutation();
   const [addComment] = useAddCommentMutation();
+  const [addFavorite] = useAddPostFavoriteMutation();
   
   const [commentText, setCommentText] = useState("");
   const [showAllComments, setShowAllComments] = useState(false);
@@ -31,12 +32,14 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
   // Local state for optimistic updates
   const [localLike, setLocalLike] = useState(post.postLike);
   const [localLikeCount, setLocalLikeCount] = useState(post.postLikeCount);
+  const [localFavorite, setLocalFavorite] = useState(post.postFavorite || false);
   const [localComments, setLocalComments] = useState(post.comments || []);
 
   // Sync with prop updates
   React.useEffect(() => {
     setLocalLike(post.postLike);
     setLocalLikeCount(post.postLikeCount);
+    setLocalFavorite(post.postFavorite || false);
     setLocalComments(post.comments || []);
   }, [post.postLike, post.postLikeCount, post.comments]);
 
@@ -56,6 +59,18 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
       console.error("Failed to like post", err);
     } finally {
       setTimeout(() => setIsLikingLocal(false), 300);
+    }
+  };
+
+  const handleFavorite = async () => {
+    const newFavState = !localFavorite;
+    setLocalFavorite(newFavState);
+    
+    try {
+      await addFavorite({ postId: post.postId }).unwrap();
+    } catch (err) {
+      setLocalFavorite(post.postFavorite || false);
+      console.error("Failed to favorite post", err);
     }
   };
 
@@ -93,14 +108,15 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
     : localComments?.slice(0, 3) || [];
 
   const mediaUrl = getFileUrl(post.images?.[0], "post");
-  const isVideo = mediaUrl.includes("/videos/") || [".mp4", ".webm", ".mov", ".avi", ".mkv"].some((ext) => mediaUrl.toLowerCase().includes(ext));
+  const rawFilename = post.images?.[0] ?? "";
+  const isVideo = [".mp4", ".webm", ".mov", ".avi", ".mkv"].some((ext) => rawFilename.toLowerCase().endsWith(ext));
 
   return (
-    <article className="bg-zinc-950 border border-zinc-900 rounded-xl overflow-hidden mb-6 max-w-full">
+    <article className="bg-ig-bg border border-ig-border rounded-xl overflow-hidden mb-6 max-w-full">
       {/* Header */}
       <div className="flex items-center justify-between p-3.5">
         <div className="flex items-center gap-3">
-          <div className="relative w-8 h-8 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900">
+          <div className="relative w-8 h-8 rounded-full overflow-hidden border border-ig-border bg-ig-card-bg">
             <img
               src={getFileUrl(post.userImage, "avatar")}
               alt={post.userName}
@@ -115,26 +131,26 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
               <span className="font-semibold text-sm hover:underline cursor-pointer">
                 {post.userName || "anonymous"}
               </span>
-              <span className="text-zinc-500 text-xs">•</span>
-              <span className="text-zinc-500 text-xs">
+              <span className="text-ig-secondary text-xs">•</span>
+              <span className="text-ig-secondary text-xs">
                 {formatRelativeTime(post.datePublished)}
               </span>
             </div>
             {post.title && (
-              <p className="text-zinc-400 text-xs font-medium leading-none mt-0.5">
+              <p className="text-ig-secondary text-xs font-medium leading-none mt-0.5">
                 {post.title}
               </p>
             )}
           </div>
         </div>
-        <button className="text-zinc-400 hover:text-white transition-colors p-1">
+        <button className="text-ig-secondary hover:text-white transition-colors p-1">
           <MoreHorizontal className="h-5 w-5" />
         </button>
       </div>
 
       {/* Media Image */}
       <div 
-        className="relative w-full aspect-square bg-zinc-900 overflow-hidden cursor-pointer"
+        className="relative w-full aspect-square bg-ig-card-bg overflow-hidden cursor-pointer"
         onDoubleClick={handleLike}
         onClick={() => onViewDetails?.(post.postId)}
       >
@@ -188,35 +204,41 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
               onClick={handleLike}
               className={cn(
                 "transition-colors p-1 -m-1",
-                localLike ? "text-red-500" : "text-zinc-200 hover:text-zinc-400"
+                localLike ? "text-red-500" : "text-ig-fg hover:text-zinc-400"
               )}
             >
               <Heart className={cn("h-6 w-6", localLike && "fill-red-500")} />
             </motion.button>
             <button 
               onClick={() => onViewDetails?.(post.postId)}
-              className="text-zinc-200 hover:text-zinc-400 transition-colors p-1 -m-1"
+              className="text-ig-fg hover:text-zinc-400 transition-colors p-1 -m-1"
             >
               <MessageCircle className="h-6 w-6" />
             </button>
-            <button className="text-zinc-200 hover:text-zinc-400 transition-colors p-1 -m-1">
+            <button className="text-ig-fg hover:text-zinc-400 transition-colors p-1 -m-1">
               <Send className="h-6 w-6" />
             </button>
           </div>
-          <button className="text-zinc-200 hover:text-zinc-400 transition-colors p-1 -m-1">
-            <Bookmark className="h-6 w-6" />
+          <button 
+            onClick={handleFavorite}
+            className={cn(
+              "transition-colors p-1 -m-1",
+              localFavorite ? "text-yellow-500" : "text-ig-fg hover:text-ig-secondary"
+            )}
+          >
+            <Bookmark className={cn("h-6 w-6", localFavorite && "fill-yellow-500")} />
           </button>
         </div>
 
         {/* Likes Count */}
-        <div className="font-semibold text-sm mb-1.5 text-zinc-100">
+        <div className="font-semibold text-sm mb-1.5 text-ig-fg">
           {localLikeCount.toLocaleString()} {localLikeCount === 1 ? "like" : "likes"}
         </div>
 
         {/* Caption & Content */}
         {post.content && (
-          <div className="text-sm leading-relaxed mb-2 text-zinc-200">
-            <span className="font-semibold mr-2 text-zinc-100 hover:underline cursor-pointer">
+          <div className="text-sm leading-relaxed mb-2 text-ig-fg">
+            <span className="font-semibold mr-2 text-ig-fg hover:underline cursor-pointer">
               {post.userName || "anonymous"}
             </span>
             {post.content}
@@ -229,7 +251,7 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
             {post.comments.length > 3 && (
               <button 
                 onClick={() => onViewDetails ? onViewDetails(post.postId) : setShowAllComments(!showAllComments)}
-                className="text-zinc-500 text-xs font-medium mb-2 hover:text-zinc-400 transition-colors"
+                className="text-ig-secondary text-xs font-medium mb-2 hover:text-zinc-400 transition-colors"
               >
                 {showAllComments 
                   ? "Hide comments" 
@@ -247,7 +269,7 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
                     key={comment.postCommentId} 
                     className="flex gap-2.5 items-start text-xs group"
                   >
-                    <div className="relative w-5 h-5 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900 flex-shrink-0 mt-0.5">
+                    <div className="relative w-5 h-5 rounded-full overflow-hidden border border-ig-border bg-ig-card-bg flex-shrink-0 mt-0.5">
                       <img
                         src={getFileUrl(comment.userImage, "avatar")}
                         alt={comment.userName}
@@ -258,11 +280,11 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
                       />
                     </div>
                     <div className="flex-1 leading-normal">
-                      <span className="font-semibold mr-1.5 text-zinc-200 hover:underline cursor-pointer">
+                      <span className="font-semibold mr-1.5 text-ig-fg hover:underline cursor-pointer">
                         {comment.userName.split("@")[0]}
                       </span>
-                      <span className="text-zinc-300">{comment.comment}</span>
-                      <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-500">
+                      <span className="text-ig-fg">{comment.comment}</span>
+                      <div className="flex items-center gap-2 mt-1 text-[10px] text-ig-secondary">
                         <span>{formatRelativeTime(comment.dateCommented)}</span>
                       </div>
                     </div>
@@ -277,9 +299,9 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
       {/* Add Comment Input */}
       <form 
         onSubmit={handleAddComment}
-        className="flex items-center gap-2.5 px-3.5 py-3 border-t border-zinc-900 bg-zinc-950"
+        className="flex items-center gap-2.5 px-3.5 py-3 border-t border-ig-border bg-ig-bg"
       >
-        <button type="button" className="text-zinc-400 hover:text-white transition-colors">
+        <button type="button" className="text-ig-secondary hover:text-white transition-colors">
           <Smile className="h-5 w-5" />
         </button>
         <input
@@ -287,7 +309,7 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
           value={commentText}
           onChange={(e) => setCommentText(e.target.value)}
           placeholder="Add a comment..."
-          className="flex-1 bg-transparent text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none"
+          className="flex-1 bg-transparent text-xs text-ig-fg placeholder-zinc-500 focus:outline-none"
         />
         <button
           type="submit"

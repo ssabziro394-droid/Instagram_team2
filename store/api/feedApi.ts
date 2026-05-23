@@ -222,6 +222,15 @@ export const feedApi = baseApi.injectEndpoints({
       }),
       // Removed invalidatesTags to prevent full feed refetch on every like
     }),
+    
+    addPostFavorite: builder.mutation<any, { postId: number }>({
+      query: (body) => ({
+        url: "/Post/add-post-favorite",
+        method: "POST",
+        body,
+      }),
+      // Avoid massive invalidation, maybe rely on optimistic update if possible
+    }),
 
     addComment: builder.mutation<any, { postId: number; comment: string }>({
       query: (body) => ({
@@ -551,6 +560,7 @@ export const {
   useAddCommentMutation,
   useDeleteCommentMutation,
   useDeletePostMutation,
+  useAddPostFavoriteMutation,
   useCreatePostMutation,
   useGetPostByIdQuery,
   useGetMyPostsQuery,
