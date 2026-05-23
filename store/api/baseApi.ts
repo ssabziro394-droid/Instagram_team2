@@ -31,6 +31,7 @@ const baseQueryWithReauth: BaseQueryFn<
   return result;
 };
 
+// Base API using Swagger API backend
 export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithReauth,
