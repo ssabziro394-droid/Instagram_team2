@@ -87,7 +87,7 @@ const resolveAssetUrl = (rawUrl: string, usernameFallback?: string): string => {
 
 export const reelsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getReels: builder.query<Reel[], { pageNumber?: number; pageSize?: number } | void>({
+    fetchReels: builder.query<Reel[], { pageNumber?: number; pageSize?: number } | void>({
       query: (params) => {
         const pageNumber = params?.pageNumber ?? 1;
         const pageSize = params?.pageSize ?? 10;
@@ -189,7 +189,7 @@ export const reelsApi = baseApi.injectEndpoints({
             ]
           : [{ type: "Reel", id: "LIST" }],
     }),
-    getUsers: builder.query<any[], { pageNumber?: number; pageSize?: number } | void>({
+    fetchReelsUsers: builder.query<any[], { pageNumber?: number; pageSize?: number } | void>({
       query: (params) => {
         const pageNumber = params?.pageNumber ?? 1;
         const pageSize = params?.pageSize ?? 30;
@@ -252,7 +252,7 @@ export const reelsApi = baseApi.injectEndpoints({
           : [{ type: "User", id: "LIST" }],
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 });
 
-export const { useGetReelsQuery, useGetUsersQuery } = reelsApi;
+export const { useFetchReelsQuery, useFetchReelsUsersQuery } = reelsApi;

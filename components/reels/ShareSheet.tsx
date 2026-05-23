@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check } from "lucide-react";
-import { useGetUsersQuery } from "@/store/api/reelsApi";
+import { useFetchReelsUsersQuery } from "@/store/api/reelsApi";
 import ShareUserGrid from "./ShareUserGrid";
 import ShareActionBar from "./ShareActionBar";
 
@@ -32,7 +32,7 @@ export default function ShareSheet({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Fetch users from API (safe Swagger integration inside Reels module)
-  const { data: apiUsers, isLoading } = useGetUsersQuery(
+  const { data: apiUsers, isLoading } = useFetchReelsUsersQuery(
     { pageNumber: 1, pageSize: 30 },
     { skip: !isOpen }
   );

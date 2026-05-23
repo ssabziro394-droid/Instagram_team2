@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useGetReelsQuery } from "@/store/api/reelsApi";
+import { useFetchReelsQuery } from "@/store/api/reelsApi";
 import ReelCard from "@/components/reels/ReelCard";
 import ReelSkeleton from "@/components/reels/ReelSkeleton";
 import { Reel, Comment } from "@/components/reels/types";
@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 
 export default function ReelsPage() {
   // 1. Fetch from Swagger endpoint via RTK Query
-  const { data: reelsFromApi, isLoading, isError, error, refetch } = useGetReelsQuery({ pageNumber: 1, pageSize: 10 });
+  const { data: reelsFromApi, isLoading, isError, error, refetch } = useFetchReelsQuery({ pageNumber: 1, pageSize: 10 });
 
   // 2. Local state to manage live interactive edits (likes, saves, follows, comments) without database mutations
   const [reelsList, setReelsList] = useState<Reel[]>([]);
@@ -43,6 +43,8 @@ export default function ReelsPage() {
     let activeReels: Reel[] = [];
     if (reelsFromApi && reelsFromApi.length > 0) {
       activeReels = reelsFromApi;
+    } else if (!isLoading) {
+      activeReels = MOCK_REELS; // Fallback to mock data if empty!
     }
 
     setReelsList(activeReels);
