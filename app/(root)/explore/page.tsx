@@ -18,23 +18,27 @@ import {
 import type { ProfileId } from "@/types/profile";
 import type { SearchHistory, SearchUser } from "@/types/search";
 
-function toIdString(id?: ProfileId) {
+// ---------------------------------------------------------------------------
+// Pure helpers — no side-effects, easy to unit-test
+// ---------------------------------------------------------------------------
+
+function toIdString(id?: ProfileId): string {
   return id === undefined || id === null ? "" : String(id);
 }
 
-function getUserId(user?: SearchUser) {
+function getUserId(user?: SearchUser): string {
   return toIdString(user?.id ?? user?.userId);
 }
 
-function getHistoryId(history: SearchHistory) {
+function getHistoryId(history: SearchHistory): string {
   return toIdString(history.searchHistoryId ?? history.id);
 }
 
-function getUsername(user?: SearchUser) {
+function getUsername(user?: SearchUser): string {
   return user?.username ?? user?.userName ?? "";
 }
 
-function getDisplayName(user?: SearchUser) {
+function getDisplayName(user?: SearchUser): string {
   return (
     user?.fullName ??
     user?.name ??
@@ -54,17 +58,13 @@ function getHistoryUser(history: SearchHistory): SearchUser {
   );
 }
 
-function getProfileSlug(user: SearchUser) {
+function getProfileSlug(user: SearchUser): string {
   return getUsername(user) || getUserId(user);
 }
 
-function matchesQuery(user: SearchUser, query: string) {
+function matchesQuery(user: SearchUser, query: string): boolean {
   const normalizedQuery = query.toLowerCase();
-  const searchableText = [
-    getUsername(user),
-    getDisplayName(user),
-    user.bio,
-  ]
+  const searchableText = [getUsername(user), getDisplayName(user), user.bio]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
@@ -72,17 +72,31 @@ function matchesQuery(user: SearchUser, query: string) {
   return searchableText.includes(normalizedQuery);
 }
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type CombinedHistory = SearchHistory & { isText: boolean };
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export default function ExplorePage() {
   const router = useRouter();
+
   const [query, setQuery] = useState("");
   const [searchInputValue, setSearchInputValue] = useState("");
   const [deletingHistoryId, setDeletingHistoryId] = useState("");
+
+  // ── API hooks ──────────────────────────────────────────────────────────────
 
   const usersQuery = useGetSearchUsersQuery(
     { search: query, pageSize: 20 },
     { skip: query.length === 0 }
   );
-  
+
+  // Both history feeds are always fetched; the UI decides what to show.
   const textHistoriesQuery = useGetSearchHistoriesQuery();
   const userHistoriesQuery = useGetUserSearchHistoriesQuery();
 
@@ -93,59 +107,54 @@ export default function ExplorePage() {
   const [deleteSearchHistories] = useDeleteSearchHistoriesMutation();
   const [deleteUserSearchHistories] = useDeleteUserSearchHistoriesMutation();
 
-  const users = useMemo(() => {
-    if (query.length === 0) {
-      return [];
-    }
+  // ── Derived data ───────────────────────────────────────────────────────────
 
-    const source = usersQuery.data ?? [];
-    const filtered = source.filter((user) => matchesQuery(user, query));
+  const searchResults: SearchUser[] = useMemo(() => {
+    const users = usersQuery.data ?? [];
+    if (!query) return users;
+    return users.filter((u) => matchesQuery(u, query));
+  }, [usersQuery.data, query]);
 
-    return filtered.length > 0 ? filtered : source;
-  }, [query, usersQuery.data]);
+  /**
+   * Merges text-search histories and user-search histories into a single
+   * chronologically-sorted list, newest first.
+   */
+  const combinedHistories: CombinedHistory[] = useMemo(() => {
+    const textItems: CombinedHistory[] = (textHistoriesQuery.data ?? []).map(
+      (h) => ({ ...h, isText: true })
+    );
+    const userItems: CombinedHistory[] = (userHistoriesQuery.data ?? []).map(
+      (h) => ({ ...h, isText: false })
+    );
 
-  const combinedHistories = useMemo(() => {
-    const textHistories = textHistoriesQuery.data ?? [];
-    const userHistories = userHistoriesQuery.data ?? [];
-
-    const textItems = textHistories.map((h) => ({
-      ...h,
-      isText: true,
-    }));
-    const userItems = userHistories.map((h) => ({
-      ...h,
-      isText: false,
-    }));
-
-    const combined = [...textItems, ...userItems];
-    return combined.sort((a, b) => {
+    return [...textItems, ...userItems].sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      if (dateA && dateB) {
-        return dateB - dateA;
-      }
-      const idA = Number(a.id) || 0;
-      const idB = Number(b.id) || 0;
-      return idB - idA;
+
+      if (dateA && dateB) return dateB - dateA;
+
+      // Fallback to numeric id comparison when timestamps are absent.
+      return (Number(b.id) || 0) - (Number(a.id) || 0);
     });
   }, [textHistoriesQuery.data, userHistoriesQuery.data]);
+
+  // ── Navigation helper ──────────────────────────────────────────────────────
+
+  const navigateToUser = useCallback(
+    (user: SearchUser) => {
+      router.push(`/profile/${getProfileSlug(user)}`);
+    },
+    [router]
+  );
+
+  // ── Event handlers ─────────────────────────────────────────────────────────
 
   const handleDebouncedChange = useCallback((value: string) => {
     setQuery(value);
     setSearchInputValue(value);
   }, []);
 
-  const navigateToUser = useCallback(
-    (user: SearchUser) => {
-      const slug = getProfileSlug(user);
-      if (slug) {
-        router.push(`/${encodeURIComponent(slug)}`);
-      }
-    },
-    [router]
-  );
-
-  const handleSelectUser = useCallback(
+  const handleUserClick = useCallback(
     async (user: SearchUser) => {
       const userId = getUserId(user);
       try {
@@ -161,7 +170,7 @@ export default function ExplorePage() {
   );
 
   const handleSelectHistory = useCallback(
-    async (history: SearchHistory & { isText?: boolean }) => {
+    async (history: CombinedHistory) => {
       if (history.isText) {
         const text = history.text ?? history.searchText ?? history.query ?? "";
         setQuery(text);
@@ -169,7 +178,7 @@ export default function ExplorePage() {
         try {
           await addSearchHistory(text).unwrap();
         } catch {
-          // Ignore error
+          // Ignore — UI already reflects the selection.
         }
       } else {
         const user = getHistoryUser(history);
@@ -179,7 +188,7 @@ export default function ExplorePage() {
             await addUserSearchHistory(userId).unwrap();
           }
         } catch {
-          // Ignore error
+          // Ignore — navigate regardless.
         }
         navigateToUser(user);
       }
@@ -188,11 +197,9 @@ export default function ExplorePage() {
   );
 
   const handleDeleteHistory = useCallback(
-    async (history: SearchHistory & { isText?: boolean }) => {
+    async (history: CombinedHistory) => {
       const historyId = getHistoryId(history);
-      if (!historyId) {
-        return;
-      }
+      if (!historyId) return;
 
       setDeletingHistoryId(historyId);
       try {
@@ -210,33 +217,42 @@ export default function ExplorePage() {
     [deleteSearchHistory, deleteUserSearchHistory]
   );
 
-  const handleClearHistory = useCallback(async () => {
+  const handleClearAllHistory = useCallback(async () => {
     try {
       await Promise.all([
         deleteSearchHistories().unwrap(),
         deleteUserSearchHistories().unwrap(),
       ]);
     } catch {
-      // Keep recent searches visible if the backend cannot clear them.
+      // Silently ignore — the UI will re-sync on the next fetch.
     }
   }, [deleteSearchHistories, deleteUserSearchHistories]);
 
   const handleSearchSubmit = useCallback(
     async (value: string) => {
-      if (!value.trim()) return;
+      const trimmed = value.trim();
+      if (!trimmed) return;
       try {
-        await addSearchHistory(value.trim()).unwrap();
+        await addSearchHistory(trimmed).unwrap();
       } catch {
-        // Ignore error
+        // Ignore.
       }
     },
     [addSearchHistory]
   );
 
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  const isLoading =
+    usersQuery.isLoading ||
+    usersQuery.isFetching ||
+    textHistoriesQuery.isLoading ||
+    userHistoriesQuery.isLoading;
+
   return (
     <div className="flex min-h-full flex-col bg-black text-white">
       {/* Top bar */}
-      <div className="sticky top-0 z-10 bg-black border-b border-zinc-900 px-4 py-3 flex items-center gap-3">
+      <div className="sticky top-0 z-10 border-b border-zinc-900 bg-black px-4 py-3 flex items-center gap-3">
         <SearchBar
           value={searchInputValue}
           onDebouncedChange={handleDebouncedChange}
@@ -249,15 +265,15 @@ export default function ExplorePage() {
       <div className="flex-1">
         <SearchResults
           query={query}
-          users={users}
+          users={searchResults}
           histories={combinedHistories}
-          isLoading={usersQuery.isLoading || usersQuery.isFetching}
+          isLoading={isLoading}
           isError={usersQuery.isError}
           deletingHistoryId={deletingHistoryId}
-          onSelectUser={handleSelectUser}
+          onSelectUser={handleUserClick}
           onSelectHistory={handleSelectHistory}
           onDeleteHistory={handleDeleteHistory}
-          onClearHistory={handleClearHistory}
+          onClearHistory={handleClearAllHistory}
         />
       </div>
     </div>
