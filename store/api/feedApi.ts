@@ -502,43 +502,7 @@ export const feedApi = baseApi.injectEndpoints({
       invalidatesTags: [{ type: "Post", id: "STORIES" }],
     }),
 
-    getSubscribers: builder.query<ApiResponse<any>, string>({
-      query: (userId) => ({
-        url: "/FollowingRelationShip/get-subscribers",
-        params: { UserId: userId },
-      }),
-      providesTags: ["Following"],
-    }),
 
-    getSubscriptions: builder.query<ApiResponse<any>, string>({
-      query: (userId) => ({
-        url: "/FollowingRelationShip/get-subscriptions",
-        params: { UserId: userId },
-      }),
-      providesTags: ["Following"],
-    }),
-
-    getUsers: builder.query<ApiResponse<any>, void>({
-      query: () => "/User/get-users",
-    }),
-
-    followUser: builder.mutation<any, string>({
-      query: (followingUserId) => ({
-        url: "/FollowingRelationShip/add-following-relation-ship",
-        method: "POST",
-        params: { followingUserId },
-      }),
-      invalidatesTags: ["Following", { type: "Post", id: "FOLLOWING_LIST" }],
-    }),
-
-    unfollowUser: builder.mutation<any, string>({
-      query: (followingUserId) => ({
-        url: "/FollowingRelationShip/delete-following-relation-ship",
-        method: "DELETE",
-        params: { followingUserId },
-      }),
-      invalidatesTags: ["Following", { type: "Post", id: "FOLLOWING_LIST" }],
-    }),
   }),
   overrideExisting: true,
 });
@@ -564,9 +528,5 @@ export const {
   useDeleteStoryMutation,
   useLikeStoryMutation,
   useAddStoryViewMutation,
-  useGetSubscribersQuery,
-  useGetSubscriptionsQuery,
-  useGetUsersQuery,
-  useFollowUserMutation,
-  useUnfollowUserMutation,
+
 } = feedApi;

@@ -87,7 +87,7 @@ const resolveAssetUrl = (rawUrl: string, usernameFallback?: string): string => {
 
 export const reelsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getReels: builder.query<Reel[], { pageNumber?: number; pageSize?: number } | void>({
+    getPlayableReels: builder.query<Reel[], { pageNumber?: number; pageSize?: number } | void>({
       query: (params) => {
         const pageNumber = params?.pageNumber ?? 1;
         const pageSize = params?.pageSize ?? 10;
@@ -189,70 +189,9 @@ export const reelsApi = baseApi.injectEndpoints({
             ]
           : [{ type: "Reel", id: "LIST" }],
     }),
-    getUsers: builder.query<any[], { pageNumber?: number; pageSize?: number } | void>({
-      query: (params) => {
-        const pageNumber = params?.pageNumber ?? 1;
-        const pageSize = params?.pageSize ?? 30;
-        return {
-          url: `/User/get-users`,
-          params: {
-            PageNumber: pageNumber,
-            PageSize: pageSize,
-          },
-        };
-      },
-      transformResponse: (response: any): any[] => {
-        if (!response) return [];
-
-        let rawItems: any[] = [];
-        if (Array.isArray(response)) {
-          rawItems = response;
-        } else if (response && Array.isArray(response.data)) {
-          rawItems = response.data;
-        } else if (response && typeof response === "object") {
-          const arrayKey = Object.keys(response).find((key) => Array.isArray(response[key]));
-          if (arrayKey) {
-            rawItems = response[arrayKey];
-          }
-        }
-
-        return rawItems.map((item: any, index: number) => {
-          const id = String(item.userId || item.id || `user-${index}`);
-          const username = String(
-            item.userName ||
-            item.username ||
-            item.name ||
-            item.fullName ||
-            `user_${index}`
-          );
-
-          const rawAvatar =
-            item.avatar ||
-            item.userAvatar ||
-            item.avatarUrl ||
-            item.image ||
-            item.imageUrl ||
-            "";
-
-          const avatarUrl = resolveAssetUrl(rawAvatar, username);
-
-          return {
-            id,
-            username,
-            avatarUrl,
-          };
-        });
-      },
-      providesTags: (result) =>
-        result
-          ? [
-              ...result.map(({ id }) => ({ type: "User" as const, id })),
-              { type: "User", id: "LIST" },
-            ]
-          : [{ type: "User", id: "LIST" }],
-    }),
   }),
   overrideExisting: false,
 });
 
-export const { useGetReelsQuery, useGetUsersQuery } = reelsApi;
+export const { useGetPlayableReelsQuery } = reelsApi;
+export const useGetReelsQuery = useGetPlayableReelsQuery;

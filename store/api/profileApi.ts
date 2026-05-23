@@ -78,6 +78,8 @@ function mapSwaggerProfile(profile: UserProfileSwaggerDto): UserProfile {
     locationId: profile.locationId,
     dob: profile.dob,
     occupation: profile.occupation,
+    // isFollowing comes separately from getIsFollowUserProfileById
+    isFollowing: (profile as any).isFollowing ?? false,
   };
 }
 
@@ -258,6 +260,25 @@ export const profileApi = baseApi.injectEndpoints({
         unwrapResponse<ApiMessageResponse>(response),
       invalidatesTags: [{ type: "User", id: "ME" }],
     }),
+    getIsFollowUserProfileById: builder.query<boolean, string>({
+      query: (followingUserId) => ({
+        url: "UserProfile/get-is-follow-user-profile-by-id",
+        params: { followingUserId },
+      }),
+      transformResponse: (response: unknown) => {
+        console.log("[isFollow API raw response]:", JSON.stringify(response));
+        // API may return: { data: true }, { data: false }, true, false, "true", "false"
+        let val: unknown = response;
+        if (typeof val === "object" && val !== null) {
+          val = (val as any).data ?? (val as any).result ?? (val as any).value ?? val;
+        }
+        // Handle string "true"/"false"
+        if (val === "true" || val === true || val === 1) return true;
+        if (val === "false" || val === false || val === 0 || val === null) return false;
+        return Boolean(val);
+      },
+      providesTags: (_result, _error, id) => [{ type: "User" as const, id: `FOLLOW_${id}` }],
+    }),
     getPostFavorites: builder.query<ProfilePost[], ProfileListQuery | ProfileId | void>({
       query: (query) => ({
         url: "UserProfile/get-post-favorites",
@@ -271,7 +292,6 @@ export const profileApi = baseApi.injectEndpoints({
       query: (body) => ({
         url: "FollowingRelationShip/add-following-relation-ship",
         method: "POST",
-        body,
         params: relationshipParams(body),
       }),
       transformResponse: (response: unknown) =>
@@ -281,7 +301,10 @@ export const profileApi = baseApi.injectEndpoints({
         return [
           { type: "User" as const, id: "LIST" },
           { type: "User" as const, id: "ME" },
-          ...(targetId ? [{ type: "User" as const, id: targetId }] : []),
+          ...(targetId ? [
+            { type: "User" as const, id: targetId },
+            { type: "User" as const, id: `FOLLOW_${targetId}` },
+          ] : []),
         ];
       },
     }),
@@ -289,7 +312,6 @@ export const profileApi = baseApi.injectEndpoints({
       query: (body) => ({
         url: "FollowingRelationShip/delete-following-relation-ship",
         method: "DELETE",
-        body,
         params: relationshipParams(body),
       }),
       transformResponse: (response: unknown) =>
@@ -299,7 +321,10 @@ export const profileApi = baseApi.injectEndpoints({
         return [
           { type: "User" as const, id: "LIST" },
           { type: "User" as const, id: "ME" },
-          ...(targetId ? [{ type: "User" as const, id: targetId }] : []),
+          ...(targetId ? [
+            { type: "User" as const, id: targetId },
+            { type: "User" as const, id: `FOLLOW_${targetId}` },
+          ] : []),
         ];
       },
     }),
@@ -329,6 +354,7 @@ export const {
   useProfileFollowUserMutation,
   useGetMyProfileQuery,
   useGetPostFavoritesQuery,
+  useGetIsFollowUserProfileByIdQuery,
   useProfileGetSubscribersQuery,
   useProfileGetSubscriptionsQuery,
   useGetUserProfileByIdQuery,

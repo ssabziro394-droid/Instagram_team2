@@ -10,7 +10,7 @@ import {
   useDeleteSearchHistoriesMutation,
   useDeleteSearchHistoryMutation,
   useGetSearchHistoriesQuery,
-  useGetUsersQuery,
+  useGetSearchUsersQuery,
   useGetUserSearchHistoriesQuery,
   useDeleteUserSearchHistoryMutation,
   useDeleteUserSearchHistoriesMutation,
@@ -234,32 +234,32 @@ export default function ExplorePage() {
   );
 
   return (
-    <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-5 px-4 py-8 sm:px-6">
-      <div className="border-b border-zinc-800 pb-5">
-        <h1 className="text-2xl font-bold tracking-tight text-white">Search</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Find people and return to recent profile searches.
-        </p>
+    <div className="flex min-h-full flex-col bg-black text-white">
+      {/* Top bar */}
+      <div className="sticky top-0 z-10 bg-black border-b border-zinc-900 px-4 py-3 flex items-center gap-3">
+        <SearchBar
+          value={searchInputValue}
+          onDebouncedChange={handleDebouncedChange}
+          onSearchSubmit={handleSearchSubmit}
+          placeholder="Поиск"
+        />
       </div>
 
-      <SearchBar
-        value={searchInputValue}
-        onDebouncedChange={handleDebouncedChange}
-        onSearchSubmit={handleSearchSubmit}
-      />
-
-      <SearchResults
-        query={query}
-        users={users}
-        histories={combinedHistories}
-        isLoading={usersQuery.isLoading || usersQuery.isFetching}
-        isError={usersQuery.isError}
-        deletingHistoryId={deletingHistoryId}
-        onSelectUser={handleSelectUser}
-        onSelectHistory={handleSelectHistory}
-        onDeleteHistory={handleDeleteHistory}
-        onClearHistory={handleClearHistory}
-      />
+      {/* Results */}
+      <div className="flex-1">
+        <SearchResults
+          query={query}
+          users={users}
+          histories={combinedHistories}
+          isLoading={usersQuery.isLoading || usersQuery.isFetching}
+          isError={usersQuery.isError}
+          deletingHistoryId={deletingHistoryId}
+          onSelectUser={handleSelectUser}
+          onSelectHistory={handleSelectHistory}
+          onDeleteHistory={handleDeleteHistory}
+          onClearHistory={handleClearHistory}
+        />
+      </div>
     </div>
   );
 }

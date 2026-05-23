@@ -10,14 +10,17 @@ export type SearchUser = {
   lastName?: string;
   name?: string;
   bio?: string;
+  // avatar fields (API may return any of these)
   avatarUrl?: string;
   imageUrl?: string;
   image?: string;
   avatar?: string;
+  userImage?: string;   // ← API field
   followersCount?: number;
   followingCount?: number;
   subscribersCount?: number;
   subscriptionsCount?: number;
+  postsCount?: number;
   isFollowing?: boolean;
   isFollowed?: boolean;
   email?: string;

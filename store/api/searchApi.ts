@@ -73,6 +73,7 @@ function historyIdParams(request: DeleteSearchHistoryRequest | string | number) 
 }
 
 export const searchApi = baseApi.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getSearchUsers: builder.query<SearchUser[], SearchUsersQuery | string | void>({
       query: (query) => ({
@@ -179,8 +180,11 @@ export const {
   useDeleteSearchHistoriesMutation,
   useDeleteSearchHistoryMutation,
   useGetSearchHistoriesQuery,
-  useGetUsersQuery,
+  useGetSearchUsersQuery,
   useGetUserSearchHistoriesQuery,
   useDeleteUserSearchHistoryMutation,
   useDeleteUserSearchHistoriesMutation,
 } = searchApi;
+
+// Alias: useGetUsersQuery -> useGetSearchUsersQuery (backward compatibility for all components)
+export const useGetUsersQuery = useGetSearchUsersQuery;
