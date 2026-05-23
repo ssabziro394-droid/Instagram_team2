@@ -36,14 +36,16 @@ export default function ReelCard({ reel, isActive }: ReelCardProps) {
   const [commentText, setCommentText] = useState("");
   const [isLikingLocal, setIsLikingLocal] = useState(false);
 
-  // Local state for optimistic like updates
+  // Local state for optimistic updates
   const [localLike, setLocalLike] = useState(reel.postLike);
   const [localLikeCount, setLocalLikeCount] = useState(reel.postLikeCount);
+  const [localComments, setLocalComments] = useState(reel.comments || []);
 
   useEffect(() => {
     setLocalLike(reel.postLike);
     setLocalLikeCount(reel.postLikeCount);
-  }, [reel.postLike, reel.postLikeCount]);
+    setLocalComments(reel.comments || []);
+  }, [reel.postLike, reel.postLikeCount, reel.comments]);
 
   // Handle play/pause depending on isActive prop
   useEffect(() => {
@@ -122,11 +124,23 @@ export default function ReelCard({ reel, isActive }: ReelCardProps) {
     const currentText = commentText;
     setCommentText("");
 
+    const optimisticComment = {
+      postCommentId: Date.now(), // Temp ID
+      userId: "me",
+      userName: "You",
+      userImage: null,
+      dateCommented: new Date().toISOString(),
+      comment: currentText,
+    };
+    
+    setLocalComments(prev => [...prev, optimisticComment]);
+
     try {
       await addComment({ postId: reel.postId, comment: currentText }).unwrap();
     } catch (err) {
       console.error("Failed to add comment to reel", err);
       setCommentText(currentText);
+      setLocalComments(prev => prev.filter(c => c.postCommentId !== optimisticComment.postCommentId));
     }
   };
 
@@ -204,7 +218,7 @@ export default function ReelCard({ reel, isActive }: ReelCardProps) {
                 alt={reel.userName}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  e.currentTarget.src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80";
+                  e.currentTarget.src = getFileUrl(null, "avatar");
                 }}
               />
             </div>
@@ -258,7 +272,7 @@ export default function ReelCard({ reel, isActive }: ReelCardProps) {
               <MessageCircle className="h-5 w-5" />
             </button>
             <span className="text-[10px] font-medium text-zinc-300 mt-1 shadow-sm">
-              {reel.commentCount}
+              {localComments.length || reel.commentCount}
             </span>
           </div>
 
@@ -293,10 +307,9 @@ export default function ReelCard({ reel, isActive }: ReelCardProps) {
               </button>
             </div>
 
-            {/* Comments scroll area */}
             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3.5">
-              {reel.comments && reel.comments.length > 0 ? (
-                reel.comments.map((comment) => (
+              {localComments && localComments.length > 0 ? (
+                localComments.map((comment) => (
                   <div key={comment.postCommentId} className="flex gap-2.5 items-start text-xs">
                     <div className="relative w-6 h-6 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900 flex-shrink-0">
                       <img
@@ -304,7 +317,7 @@ export default function ReelCard({ reel, isActive }: ReelCardProps) {
                         alt={comment.userName}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.currentTarget.src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80";
+                          e.currentTarget.src = getFileUrl(null, "avatar");
                         }}
                       />
                     </div>

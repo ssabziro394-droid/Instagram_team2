@@ -6,14 +6,30 @@ import ReelCard from "./ReelCard";
 import { RefreshCw, VideoOff } from "lucide-react";
 
 export default function ReelsList() {
-  const { data, isLoading, error, refetch } = useGetReelsQuery({
-    pageNumber: 1,
-    pageSize: 15,
+  const [pageNumber, setPageNumber] = useState(1);
+  const { data, isLoading, error, refetch, isFetching } = useGetReelsQuery({
+    pageNumber: pageNumber,
+    pageSize: 10,
   });
 
-  const reels = data?.data || [];
+  const [reels, setReels] = useState<any[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Accumulate reels data when page changes
+  useEffect(() => {
+    if (data?.data) {
+      setPageNumber(data.pageNumber);
+      if (data.pageNumber === 1) {
+        setReels(data.data);
+      } else {
+        setReels((prev) => {
+          const newReels = data.data.filter((newReel: any) => !prev.some((p: any) => p.postId === newReel.postId));
+          return [...prev, ...newReels];
+        });
+      }
+    }
+  }, [data]);
 
   // Set up intersection observer to detect which reel is in the middle of the viewport
   useEffect(() => {
@@ -53,7 +69,27 @@ export default function ReelsList() {
     };
   }, [reels]);
 
-  if (isLoading) {
+  // Infinite scroll observer
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      if (
+        container.scrollHeight - container.scrollTop <= container.clientHeight + 200 &&
+        !isFetching &&
+        data &&
+        pageNumber < data.totalPage
+      ) {
+        setPageNumber((prev) => prev + 1);
+      }
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [isFetching, data, pageNumber]);
+
+  if (isLoading && pageNumber === 1) {
     return (
       <div className="flex flex-col items-center justify-center h-[75vh] w-full max-w-[420px] mx-auto bg-zinc-950 border border-zinc-900 rounded-2xl animate-pulse p-6">
         <div className="w-full flex items-center justify-between mb-4">
@@ -72,7 +108,7 @@ export default function ReelsList() {
     );
   }
 
-  if (error) {
+  if (error && pageNumber === 1) {
     return (
       <div className="flex flex-col items-center justify-center p-8 border border-zinc-800 rounded-2xl bg-zinc-950/50 backdrop-blur text-center max-w-sm mx-auto my-12">
         <span className="text-red-500 font-medium mb-2">Failed to load Reels</span>

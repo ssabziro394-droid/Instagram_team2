@@ -5,15 +5,15 @@ import StoriesBar from "@/components/feed/StoriesBar";
 import FeedList from "@/components/feed/FeedList";
 import Suggestions from "@/components/feed/Suggestions";
 import PostDetailModal from "@/components/feed/PostDetailModal";
-import { AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function HomeFeed() {
   const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
 
   return (
-    <div className="min-h-screen bg-black text-white w-full">
+    <div className="min-h-screen bg-ig-bg text-ig-fg transition-colors duration-300 w-full">
       {/* Mobile Top Header */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-900 bg-black/85 backdrop-blur-md sticky top-0 z-40">
+      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-ig-border bg-ig-bg/85 backdrop-blur-md sticky top-0 z-40">
         <span className="font-bold font-serif text-xl tracking-wider">Instagram</span>
         <div className="flex items-center gap-4">
           {/* Custom icons could go here */}

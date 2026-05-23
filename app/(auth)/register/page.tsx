@@ -7,6 +7,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRegisterMutation } from "@/store/api/authApi";
+import { useDispatch } from "react-redux";
+import { setCredentials } from "@/store/slices/authSlice";
 import { Loader2 } from "lucide-react";
 
 const registerSchema = z
@@ -28,6 +30,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
   const router = useRouter();
+  const dispatch = useDispatch();
   const [registerUser, { isLoading }] = useRegisterMutation();
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -44,13 +47,19 @@ export default function RegisterPage() {
     try {
       const response = await registerUser(data).unwrap();
 
-      // If there are errors in response body
       if (response?.errors?.length) {
         setServerError(response.errors.join(", "));
         return;
       }
+      
+      // If the backend returns a token upon successful registration
+      if (response?.data) {
+        dispatch(setCredentials({ token: response.data }));
+      } else if (response?.token) {
+        dispatch(setCredentials({ token: response.token }));
+      }
 
-      router.push("/login");
+      router.push("/");
     } catch (err: any) {
       setServerError(
         err?.data?.errors?.join(", ") ||

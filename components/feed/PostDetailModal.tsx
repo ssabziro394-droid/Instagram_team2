@@ -108,7 +108,7 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
                 alt={post.title || "Post Image"}
                 className="max-h-[45vh] md:max-h-full max-w-full object-contain"
                 onError={(e) => {
-                  e.currentTarget.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80";
+                  e.currentTarget.style.display = "none";
                 }}
               />
             </div>
@@ -123,7 +123,7 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
                     alt={post.userName}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      e.currentTarget.src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80";
+                      e.currentTarget.src = getFileUrl(null, "avatar");
                     }}
                   />
                 </div>
@@ -148,7 +148,7 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
                         alt={post.userName}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.currentTarget.src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80";
+                          e.currentTarget.src = getFileUrl(null, "avatar");
                         }}
                       />
                     </div>
@@ -171,7 +171,7 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
                           alt={comment.userName}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            e.currentTarget.src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80";
+                            e.currentTarget.src = getFileUrl(null, "avatar");
                           }}
                         />
                       </div>

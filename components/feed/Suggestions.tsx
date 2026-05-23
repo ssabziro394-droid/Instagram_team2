@@ -1,40 +1,111 @@
 "use client";
 
-import React from "react";
-
-const SUGGESTIONS = [
-  { id: 1, username: "tom_hardy", name: "Tom Hardy", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80", relation: "Popular" },
-  { id: 2, username: "sofia_dev", name: "Sofia Smith", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80", relation: "Follows you" },
-  { id: 3, username: "nextjs_master", name: "NextJS Master", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80", relation: "Followed by tom11" },
-  { id: 4, username: "softclub_tj", name: "Softclub Academy", avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80", relation: "New to Instagram" },
-];
+import React, { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
+import { decodeJWT } from "@/lib/utils";
+import { getFileUrl } from "@/lib/file";
+import { 
+  useGetUsersQuery, 
+  useGetSubscriptionsQuery, 
+  useFollowUserMutation,
+  useUnfollowUserMutation
+} from "@/store/api/feedApi";
+import { Loader2 } from "lucide-react";
 
 export default function Suggestions() {
+  const token = useSelector((state: RootState) => state.auth.token);
+  const [currentUser, setCurrentUser] = useState<{ sid: string; name: string } | null>(null);
+
+  // Decode user JWT token on load
+  useEffect(() => {
+    if (typeof window !== "undefined" && token) {
+      const decoded = decodeJWT(token);
+      if (decoded && decoded.sid && decoded.name) {
+        setCurrentUser({ sid: decoded.sid, name: decoded.name });
+      }
+    }
+  }, [token]);
+
+  const { data: usersResponse, isLoading: isLoadingUsers } = useGetUsersQuery(undefined, { skip: !currentUser });
+  const { data: subscriptionsResponse } = useGetSubscriptionsQuery(currentUser?.sid || "", { skip: !currentUser });
+  const [followUser] = useFollowUserMutation();
+  const [unfollowUser] = useUnfollowUserMutation();
+
+  const [loadingFollowIds, setLoadingFollowIds] = useState<Record<string, boolean>>({});
+  const [initialSuggestions, setInitialSuggestions] = useState<any[]>([]);
+
+  const allUsers = usersResponse?.data || [];
+  
+  // Extract IDs of users we are following from the subscriptions response
+  const followingIds = subscriptionsResponse?.data?.map((u: any) => {
+    if (typeof u === 'string') return u;
+    // API might return different property names for the followed user's ID
+    return u.followingUserId || u.subscriberId || u.userId || u.id;
+  }) || [];
+
+  const currentUserData = allUsers.find((u: any) => u.userId === currentUser?.sid || u.id === currentUser?.sid);
+  const currentUserAvatar = currentUserData?.userImage || currentUserData?.avatar || null;
+
+  // Filter out the current user and users already followed ONLY ONCE to keep them in the list after follow
+  useEffect(() => {
+    if (allUsers.length > 0 && subscriptionsResponse && initialSuggestions.length === 0) {
+      const filtered = allUsers
+        .filter((user: any) => {
+          const uId = user.userId || user.id;
+          return uId && uId !== currentUser?.sid && !followingIds.includes(uId);
+        })
+        .slice(0, 5); // Limit to 5 suggestions
+      setInitialSuggestions(filtered);
+    }
+  }, [allUsers, subscriptionsResponse, currentUser, initialSuggestions.length]);
+
+  const handleFollowToggle = async (userId: string, isCurrentlyFollowing: boolean) => {
+    setLoadingFollowIds(prev => ({ ...prev, [userId]: true }));
+    try {
+      if (isCurrentlyFollowing) {
+        await unfollowUser(userId).unwrap();
+        // Remove from initialSuggestions if they unfollow so it functions cleanly?
+        // Actually, Instagram keeps them but changes state. The user wants them to disappear ON REFRESH, which happens naturally.
+      } else {
+        await followUser(userId).unwrap();
+      }
+    } catch (error: any) {
+      console.error("Failed to toggle follow status:", error?.data?.errors?.[0] || error?.status || JSON.stringify(error));
+    } finally {
+      setLoadingFollowIds(prev => ({ ...prev, [userId]: false }));
+    }
+  };
   return (
     <div className="w-full max-w-[320px] flex flex-col gap-5 py-4 px-2">
       {/* Current User */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900">
-            <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
-              alt="Current user"
-              className="w-full h-full object-cover"
-            />
+      {currentUser && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900">
+              <img
+                src={getFileUrl(currentUserAvatar, "avatar")}
+                alt={currentUser.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = getFileUrl(null, "avatar");
+                }}
+              />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-semibold text-sm text-zinc-100 hover:underline cursor-pointer">
+                {currentUser.name.split("@")[0]}
+              </span>
+              <span className="text-xs text-zinc-500 truncate max-w-[150px]">
+                {currentUser.name}
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="font-semibold text-sm text-zinc-100 hover:underline cursor-pointer">
-              administrator
-            </span>
-            <span className="text-xs text-zinc-500">
-              SoftClub Administrator
-            </span>
-          </div>
+          <button className="text-xs font-semibold text-sky-500 hover:text-sky-400 transition-colors">
+            Switch
+          </button>
         </div>
-        <button className="text-xs font-semibold text-sky-500 hover:text-sky-400 transition-colors">
-          Switch
-        </button>
-      </div>
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -46,30 +117,57 @@ export default function Suggestions() {
 
       {/* Suggestions list */}
       <div className="flex flex-col gap-3.5">
-        {SUGGESTIONS.map((user) => (
-          <div key={user.id} className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full overflow-hidden border border-zinc-850 bg-zinc-900">
-                <img
-                  src={user.avatar}
-                  alt={user.username}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-semibold text-xs text-zinc-200 hover:underline cursor-pointer">
-                  {user.username}
-                </span>
-                <span className="text-[10px] text-zinc-500">
-                  {user.relation}
-                </span>
-              </div>
-            </div>
-            <button className="text-xs font-semibold text-sky-500 hover:text-sky-400 transition-colors">
-              Follow
-            </button>
+        {isLoadingUsers ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-5 w-5 text-zinc-500 animate-spin" />
           </div>
-        ))}
+        ) : initialSuggestions.length > 0 ? (
+          initialSuggestions.map((user: any) => {
+            const uId = user.userId || user.id;
+            const isLoading = loadingFollowIds[uId];
+            const isFollowing = followingIds.includes(uId);
+            
+            return (
+              <div key={uId} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full overflow-hidden border border-zinc-850 bg-zinc-900">
+                      <img
+                        src={getFileUrl(user.userImage || user.avatar, "avatar")}
+                        alt={user.userName}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = getFileUrl(null, "avatar");
+                        }}
+                      />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-xs text-zinc-200 hover:underline cursor-pointer truncate max-w-[120px]">
+                      {user.userName?.split("@")[0] || "User"}
+                    </span>
+                    <span className="text-[10px] text-zinc-500">
+                      {isFollowing ? "Following" : "Suggested for you"}
+                    </span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleFollowToggle(uId, isFollowing)}
+                  disabled={isLoading}
+                  className={`text-xs font-semibold transition-colors disabled:opacity-50 ${
+                    isFollowing 
+                      ? "text-zinc-400 hover:text-red-500" 
+                      : "text-sky-500 hover:text-sky-400"
+                  }`}
+                >
+                  {isLoading ? "..." : (isFollowing ? "Unfollow" : "Follow")}
+                </button>
+              </div>
+            );
+          })
+        ) : (
+          <div className="text-xs text-zinc-500 text-center py-2">
+            No suggestions available.
+          </div>
+        )}
       </div>
 
       {/* Footer copyright */}

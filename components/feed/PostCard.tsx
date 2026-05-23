@@ -28,15 +28,17 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
   const [showAllComments, setShowAllComments] = useState(false);
   const [isLikingLocal, setIsLikingLocal] = useState(false);
 
-  // Local state for optimistic like updates
+  // Local state for optimistic updates
   const [localLike, setLocalLike] = useState(post.postLike);
   const [localLikeCount, setLocalLikeCount] = useState(post.postLikeCount);
+  const [localComments, setLocalComments] = useState(post.comments || []);
 
   // Sync with prop updates
   React.useEffect(() => {
     setLocalLike(post.postLike);
     setLocalLikeCount(post.postLikeCount);
-  }, [post.postLike, post.postLikeCount]);
+    setLocalComments(post.comments || []);
+  }, [post.postLike, post.postLikeCount, post.comments]);
 
   const handleLike = async () => {
     // Optimistic UI update
@@ -64,18 +66,34 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
     const currentText = commentText;
     setCommentText("");
 
+    // Optimistic comment update
+    const optimisticComment = {
+      postCommentId: Date.now(), // Temp ID
+      userId: "me",
+      userName: "You",
+      userImage: null,
+      dateCommented: new Date().toISOString(),
+      comment: currentText,
+    };
+    
+    setLocalComments(prev => [...prev, optimisticComment]);
+
     try {
       await addComment({ postId: post.postId, comment: currentText }).unwrap();
     } catch (err) {
       console.error("Failed to add comment", err);
-      // Restore comment text if failed
+      // Restore text and remove optimistic comment if failed
       setCommentText(currentText);
+      setLocalComments(prev => prev.filter(c => c.postCommentId !== optimisticComment.postCommentId));
     }
   };
 
   const visibleComments = showAllComments 
-    ? post.comments 
-    : post.comments?.slice(0, 3) || [];
+    ? localComments 
+    : localComments?.slice(0, 3) || [];
+
+  const mediaUrl = getFileUrl(post.images?.[0], "post");
+  const isVideo = mediaUrl.includes("/videos/") || [".mp4", ".webm", ".mov", ".avi", ".mkv"].some((ext) => mediaUrl.toLowerCase().includes(ext));
 
   return (
     <article className="bg-zinc-950 border border-zinc-900 rounded-xl overflow-hidden mb-6 max-w-full">
@@ -88,7 +106,7 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
               alt={post.userName}
               className="w-full h-full object-cover"
               onError={(e) => {
-                e.currentTarget.src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80";
+                e.currentTarget.src = getFileUrl(null, "avatar");
               }}
             />
           </div>
@@ -120,15 +138,30 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
         onDoubleClick={handleLike}
         onClick={() => onViewDetails?.(post.postId)}
       >
-        <img
-          src={getFileUrl(post.images?.[0], "post")}
-          alt={post.title || "Post Image"}
-          className="w-full h-full object-cover transition-transform duration-500 hover:scale-[1.02]"
-          loading="lazy"
-          onError={(e) => {
-            e.currentTarget.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80";
-          }}
-        />
+        {isVideo ? (
+          <video
+            src={mediaUrl}
+            className="w-full h-full object-cover transition-transform duration-500 hover:scale-[1.02]"
+            autoPlay
+            loop
+            muted
+            playsInline
+            onError={(e) => {
+              // Fallback if video fails
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        ) : (
+          <img
+            src={mediaUrl}
+            alt={post.title || "Post Image"}
+            className="w-full h-full object-cover transition-transform duration-500 hover:scale-[1.02]"
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        )}
         
         {/* Double click heart animation */}
         <AnimatePresence>
@@ -220,7 +253,7 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
                         alt={comment.userName}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.currentTarget.src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80";
+                          e.currentTarget.src = getFileUrl(null, "avatar");
                         }}
                       />
                     </div>
