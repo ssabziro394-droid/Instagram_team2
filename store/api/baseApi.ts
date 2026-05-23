@@ -1,5 +1,4 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-// @TODO(Team Lead): Please review this RootState import needed to access the auth token
 import type { RootState } from "../store";
 
 const API_BASE_URL = "https://instagram-api.softclub.tj/";
