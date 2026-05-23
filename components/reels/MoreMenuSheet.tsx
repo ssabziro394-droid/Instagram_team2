@@ -40,7 +40,7 @@ export default function MoreMenuSheet({
   const menuItems = [
     {
       label: isSaved ? "Unsave" : "Save",
-      icon: <Bookmark className={`w-5 h-5 ${isSaved ? "text-yellow-500 fill-yellow-500" : "text-white"}`} />,
+      icon: <Bookmark className={`w-5 h-5 ${isSaved ? "text-yellow-500 fill-yellow-500" : "text-ig-fg"}`} />,
       action: () => {
         onSave();
         onClose();
@@ -48,7 +48,7 @@ export default function MoreMenuSheet({
     },
     {
       label: "Remix Reel",
-      icon: <RefreshCcw className="w-5 h-5 text-white" />,
+      icon: <RefreshCcw className="w-5 h-5 text-ig-fg" />,
       action: () => {
         alert("Remix features initiated!");
         onClose();
@@ -56,7 +56,7 @@ export default function MoreMenuSheet({
     },
     {
       label: isFullscreenActive ? "Exit Fullscreen" : "Fullscreen Player",
-      icon: <Maximize2 className="w-5 h-5 text-white" />,
+      icon: <Maximize2 className="w-5 h-5 text-ig-fg" />,
       action: () => {
         onToggleFullscreen();
         onClose();
@@ -64,7 +64,7 @@ export default function MoreMenuSheet({
     },
     {
       label: isAutoScrollActive ? "Disable Auto-scroll" : "Enable Auto-scroll",
-      icon: <Play className={`w-5 h-5 ${isAutoScrollActive ? "text-sky-400" : "text-white"}`} />,
+      icon: <Play className={`w-5 h-5 ${isAutoScrollActive ? "text-sky-400" : "text-ig-fg"}`} />,
       action: () => {
         onToggleAutoScroll();
         onClose();
@@ -72,7 +72,7 @@ export default function MoreMenuSheet({
     },
     {
       label: "Why you're seeing this post",
-      icon: <HelpCircle className="w-5 h-5 text-zinc-400" />,
+      icon: <HelpCircle className="w-5 h-5 text-ig-secondary" />,
       action: () => {
         alert("This post matches your active interests in street styling and design.");
         onClose();
@@ -80,7 +80,7 @@ export default function MoreMenuSheet({
     },
     {
       label: "Not Interested",
-      icon: <EyeOff className="w-5 h-5 text-zinc-400" />,
+      icon: <EyeOff className="w-5 h-5 text-ig-secondary" />,
       action: () => {
         alert("We will tune your algorithm to show fewer posts like this.");
         onClose();
@@ -88,7 +88,7 @@ export default function MoreMenuSheet({
     },
     {
       label: "Content Preferences",
-      icon: <Sliders className="w-5 h-5 text-zinc-400" />,
+      icon: <Sliders className="w-5 h-5 text-ig-secondary" />,
       action: () => {
         alert("Redirecting to content preferences settings.");
         onClose();
@@ -115,7 +115,7 @@ export default function MoreMenuSheet({
             animate={{ opacity: 0.6 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/75 z-40 cursor-pointer"
+            className="fixed inset-0 bg-black/75 z-40 cursor-pointer"
           />
 
           {/* Bottom Sheet Drawer */}
@@ -124,7 +124,7 @@ export default function MoreMenuSheet({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 24, stiffness: 220 }}
-            className="absolute bottom-0 left-0 right-0 max-h-[85%] rounded-t-2xl bg-zinc-950 border-t border-zinc-900 z-50 flex flex-col shadow-2xl overflow-hidden"
+            className="fixed bottom-0 left-0 right-0 md:left-1/2 md:-translate-x-1/2 md:w-[460px] max-h-[85%] rounded-t-2xl bg-zinc-950 border-t border-zinc-900 z-50 flex flex-col shadow-2xl overflow-hidden"
           >
             {/* Grab indicator */}
             <div className="w-full flex justify-center py-3.5 cursor-grab active:cursor-grabbing" onClick={onClose}>
@@ -136,7 +136,7 @@ export default function MoreMenuSheet({
               <span className="font-bold text-base text-zinc-100">Options</span>
               <button
                 onClick={onClose}
-                className="p-1 rounded-full hover:bg-zinc-900 text-zinc-400 hover:text-white transition-colors"
+                className="p-1 rounded-full hover:bg-zinc-900 text-ig-secondary hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -157,7 +157,7 @@ export default function MoreMenuSheet({
                     className={`text-sm font-semibold transition-colors ${
                       item.danger
                         ? "text-red-500 hover:text-red-400"
-                        : "text-zinc-200 group-hover:text-white"
+                        : "text-ig-fg group-hover:text-white"
                     }`}
                   >
                     {item.label}

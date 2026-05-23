@@ -71,7 +71,7 @@ function historyIdParams(request: DeleteSearchHistoryRequest) {
 
 export const searchApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getUsers: builder.query<SearchUser[], SearchUsersQuery | string | void>({
+    getSearchUsers: builder.query<SearchUser[], SearchUsersQuery | string | void>({
       query: (query) => ({
         url: "User/get-users",
         params: searchParams(query),
@@ -143,5 +143,5 @@ export const {
   useDeleteSearchHistoriesMutation,
   useDeleteSearchHistoryMutation,
   useGetSearchHistoriesQuery,
-  useGetUsersQuery,
+  useGetSearchUsersQuery,
 } = searchApi;

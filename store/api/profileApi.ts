@@ -178,7 +178,7 @@ export const profileApi = baseApi.injectEndpoints({
         unwrapList<ProfilePost>(response),
       providesTags: [{ type: "Post", id: "FAVORITES" }],
     }),
-    followUser: builder.mutation<ApiMessageResponse, FollowUserRequest>({
+    profileFollowUser: builder.mutation<ApiMessageResponse, FollowUserRequest>({
       query: (body) => ({
         url: "FollowingRelationShip/add-following-relation-ship",
         method: "POST",
@@ -189,7 +189,7 @@ export const profileApi = baseApi.injectEndpoints({
         unwrapResponse<ApiMessageResponse>(response),
       invalidatesTags: [{ type: "User", id: "LIST" }],
     }),
-    unfollowUser: builder.mutation<ApiMessageResponse, FollowUserRequest>({
+    profileUnfollowUser: builder.mutation<ApiMessageResponse, FollowUserRequest>({
       query: (body) => ({
         url: "FollowingRelationShip/delete-following-relation-ship",
         method: "DELETE",
@@ -200,7 +200,7 @@ export const profileApi = baseApi.injectEndpoints({
         unwrapResponse<ApiMessageResponse>(response),
       invalidatesTags: [{ type: "User", id: "LIST" }],
     }),
-    getSubscribers: builder.query<UserProfile[], ProfileListQuery | ProfileId>({
+    profileGetSubscribers: builder.query<UserProfile[], ProfileListQuery | ProfileId>({
       query: (query) => ({
         url: "FollowingRelationShip/get-subscribers",
         params: listParams(query),
@@ -209,7 +209,7 @@ export const profileApi = baseApi.injectEndpoints({
         unwrapList<UserProfile>(response),
       providesTags: [{ type: "User", id: "SUBSCRIBERS" }],
     }),
-    getSubscriptions: builder.query<UserProfile[], ProfileListQuery | ProfileId>({
+    profileGetSubscriptions: builder.query<UserProfile[], ProfileListQuery | ProfileId>({
       query: (query) => ({
         url: "FollowingRelationShip/get-subscriptions",
         params: listParams(query),
@@ -223,13 +223,13 @@ export const profileApi = baseApi.injectEndpoints({
 
 export const {
   useDeleteUserImageProfileMutation,
-  useFollowUserMutation,
+  useProfileFollowUserMutation,
   useGetMyProfileQuery,
   useGetPostFavoritesQuery,
-  useGetSubscribersQuery,
-  useGetSubscriptionsQuery,
+  useProfileGetSubscribersQuery,
+  useProfileGetSubscriptionsQuery,
   useGetUserProfileByIdQuery,
-  useUnfollowUserMutation,
+  useProfileUnfollowUserMutation,
   useUpdateUserImageProfileMutation,
   useUpdateUserProfileMutation,
 } = profileApi;

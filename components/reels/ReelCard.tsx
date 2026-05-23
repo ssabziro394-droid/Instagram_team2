@@ -142,17 +142,17 @@ export default function ReelCard({
   return (
     <div
       ref={containerRef}
-      className="w-full h-full flex-shrink-0 snap-start relative bg-black flex justify-center items-center overflow-hidden"
+      className="w-full h-full flex-shrink-0 snap-start relative bg-ig-bg flex justify-center items-center overflow-hidden"
       style={{ contentVisibility: "auto" }}
     >
       {/* 9:16 Aspect Ratio Cinematic Container */}
-      <div className={`relative w-full h-full bg-black overflow-hidden shadow-2xl transition-all duration-500 ${
+      <div className={`relative w-full h-full bg-ig-bg overflow-hidden shadow-2xl transition-all duration-500 ${
         isFullscreen ? "md:max-w-none shadow-none" : "md:max-w-[460px] md:rounded-xl md:border md:border-zinc-900/50"
       }`}>
         
         {/* Video Player Background */}
         <div 
-          className="absolute inset-0 w-full h-full cursor-pointer z-0 bg-black"
+          className="absolute inset-0 w-full h-full cursor-pointer z-0 bg-ig-bg"
           onClick={handleVideoClick}
           onDoubleClick={handleDoubleClick}
         >
@@ -180,7 +180,7 @@ export default function ReelCard({
             <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] flex items-center justify-center z-20">
               <div className="relative flex items-center justify-center">
                 {/* Premium Instagram-style gradient spinner */}
-                <div className="w-12 h-12 rounded-full border-[3px] border-zinc-800 border-t-pink-500 border-r-purple-650 border-b-yellow-500 animate-spin" />
+                <div className="w-12 h-12 rounded-full border-[3px] border-ig-border border-t-pink-500 border-r-purple-650 border-b-yellow-500 animate-spin" />
               </div>
             </div>
           )}
@@ -198,7 +198,7 @@ export default function ReelCard({
             e.stopPropagation();
             onToggleMute();
           }}
-          className="absolute top-4 right-4 z-30 p-2.5 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white transition-all active:scale-95 shadow-md"
+          className="absolute top-4 right-4 z-30 p-2.5 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm text-ig-fg transition-all active:scale-95 shadow-md"
         >
           {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
         </button>
@@ -229,9 +229,9 @@ export default function ReelCard({
               className="absolute inset-0 m-auto w-16 h-16 pointer-events-none z-30 flex items-center justify-center bg-black/50 rounded-full"
             >
               {showPlayStateOverlay === "play" ? (
-                <Play className="w-8 h-8 text-white fill-white ml-1" />
+                <Play className="w-8 h-8 text-ig-fg fill-white ml-1" />
               ) : (
-                <Pause className="w-8 h-8 text-white fill-white" />
+                <Pause className="w-8 h-8 text-ig-fg fill-white" />
               )}
             </motion.div>
           )}
@@ -251,7 +251,7 @@ export default function ReelCard({
         />
 
         {/* Bottom Details Overlay */}
-        <div className="absolute left-4 right-16 bottom-6 z-30 text-white flex flex-col gap-3 pointer-events-none">
+        <div className="absolute left-4 right-16 bottom-6 z-30 text-ig-fg flex flex-col gap-3 pointer-events-none">
           {/* Creator Profile row */}
           <div className="flex items-center gap-3 pointer-events-auto">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -269,7 +269,7 @@ export default function ReelCard({
               className={`text-xs font-bold px-3 py-1.5 rounded-md transition-all active:scale-95 ${
                 reel.creator.isFollowing
                   ? "bg-zinc-800/85 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/50"
-                  : "bg-sky-500 hover:bg-sky-600 text-white shadow-[0_2px_8px_rgba(14,165,233,0.3)]"
+                  : "bg-sky-500 hover:bg-sky-600 text-ig-fg shadow-[0_2px_8px_rgba(14,165,233,0.3)]"
               }`}
             >
               {reel.creator.isFollowing ? "Following" : "Follow"}
@@ -278,7 +278,7 @@ export default function ReelCard({
 
           {/* Caption */}
           <div className="text-sm leading-relaxed max-w-[95%] pointer-events-auto">
-            <p className="inline drop-shadow-md text-zinc-200">
+            <p className="inline drop-shadow-md text-ig-fg">
               {isCaptionExpanded
                 ? reel.caption
                 : reel.caption.length > 80
@@ -327,7 +327,7 @@ export default function ReelCard({
               alt="audio artwork"
               className="w-5 h-5 rounded-full object-cover"
             />
-            <div className="absolute w-1.5 h-1.5 bg-zinc-950 rounded-full border border-zinc-800 inset-0 m-auto" />
+            <div className="absolute w-1.5 h-1.5 bg-zinc-950 rounded-full border border-ig-border inset-0 m-auto" />
           </motion.div>
         </div>
 

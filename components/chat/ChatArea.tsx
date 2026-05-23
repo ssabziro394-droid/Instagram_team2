@@ -22,7 +22,6 @@ import {
   useGetChatByIdQuery,
   useSendMessageMutation,
   useGetChatsQuery,
-  useGetMyProfileQuery,
   useDeleteMessageMutation,
 } from "@/store/api/chatApi";
 import { useForm } from "react-hook-form";
@@ -31,7 +30,7 @@ import * as z from "zod";
 import clsx from "clsx";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
-import { jwtDecode } from "jwt-decode";
+import { decodeJWT } from "@/lib/utils";
 
 interface ChatAreaProps {
   chatId: number | null;
@@ -49,8 +48,8 @@ type ChatFormValues = z.infer<typeof chatSchema>;
 const getUserIdFromToken = (token: string | null) => {
   if (!token) return null;
   try {
-    const decoded = jwtDecode<any>(token);
-    return decoded.sid;
+    const decoded = decodeJWT(token) as any;
+    return decoded?.sid;
   } catch (e) {
     return null;
   }
@@ -60,11 +59,11 @@ const DefaultAvatar = ({ className = "w-11 h-11" }: { className?: string }) => (
   <div
     className={clsx(
       className,
-      "rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 overflow-hidden shrink-0 border border-zinc-700/50",
+      "rounded-full bg-ig-sidebar-hover flex items-center justify-center text-ig-secondary overflow-hidden shrink-0 border border-zinc-700/50",
     )}
   >
     <svg
-      className="w-2/3 h-2/3 text-zinc-500"
+      className="w-2/3 h-2/3 text-ig-secondary"
       fill="currentColor"
       viewBox="0 0 24 24"
     >
@@ -236,10 +235,10 @@ const AudioPlayer = ({ src, isOwn }: { src: string; isOwn: boolean }) => {
           />
         </div>
         <div className="flex justify-between items-center text-[10px]">
-          <span className={clsx(isOwn ? "text-blue-100" : "text-zinc-400")}>
+          <span className={clsx(isOwn ? "text-blue-100" : "text-ig-secondary")}>
             {isPlaying ? "Playing" : "Voice message"}
           </span>
-          <span className={clsx(isOwn ? "text-blue-100/80" : "text-zinc-400")}>
+          <span className={clsx(isOwn ? "text-blue-100/80" : "text-ig-secondary")}>
             {audioRef.current && audioRef.current.duration
               ? `${Math.floor(audioRef.current.currentTime / 60)}:${(
                   Math.floor(audioRef.current.currentTime) % 60
@@ -265,7 +264,7 @@ const AudioPlayer = ({ src, isOwn }: { src: string; isOwn: boolean }) => {
               "ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold transition-colors cursor-pointer border",
               isOwn
                 ? "bg-white/10 hover:bg-white/20 text-white border-white/20"
-                : "bg-zinc-700/50 hover:bg-zinc-600/50 text-zinc-300 border-zinc-600/50",
+                : "bg-zinc-700/50 hover:bg-zinc-600/50 text-ig-fg border-zinc-600/50",
             )}
           >
             {playbackRate}x
@@ -333,7 +332,7 @@ const ModalVideoPlayer = ({
       <button
         type="button"
         onClick={onClose}
-        className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-100 transition-colors p-2 z-50"
+        className="absolute top-4 right-4 text-ig-secondary hover:text-zinc-100 transition-colors p-2 z-50"
       >
         <X className="w-8 h-8" />
       </button>
@@ -692,12 +691,12 @@ export function ChatArea({
 
   if (!chatId) {
     return (
-      <div className="hidden md:flex flex-1 bg-zinc-950 flex-col items-center justify-center p-8">
-        <div className="w-24 h-24 rounded-full border-2 border-zinc-800 flex items-center justify-center mb-4 bg-gradient-to-tr from-purple-600 to-pink-500 shadow-[0_0_40px_rgba(236,72,153,0.3)]">
+      <div className="hidden md:flex flex-1 bg-ig-bg flex-col items-center justify-center p-8">
+        <div className="w-24 h-24 rounded-full border-2 border-ig-border flex items-center justify-center mb-4 bg-gradient-to-tr from-purple-600 to-pink-500 shadow-[0_0_40px_rgba(236,72,153,0.3)]">
           <SendHorizontal className="w-10 h-10 text-white -ml-1 mt-1 transform -rotate-45" />
         </div>
-        <h2 className="text-xl font-normal text-zinc-50 mb-2">Your messages</h2>
-        <p className="text-sm text-zinc-400 mb-6 text-center max-w-xs">
+        <h2 className="text-xl font-normal text-ig-fg mb-2">Your messages</h2>
+        <p className="text-sm text-ig-secondary mb-6 text-center max-w-xs">
           Send private photos and messages to a friend or group.
         </p>
         <button
@@ -730,14 +729,14 @@ export function ChatArea({
     : "";
 
   return (
-    <div className="flex-1 flex flex-col bg-zinc-950 h-full overflow-hidden w-full">
+    <div className="flex-1 flex flex-col bg-ig-bg h-full overflow-hidden w-full">
       {/* Header */}
-      <div className="h-[76px] flex items-center justify-between px-4 md:px-6 border-b border-zinc-800 shrink-0">
+      <div className="h-[76px] flex items-center justify-between px-4 md:px-6 border-b border-ig-border shrink-0">
         <div className="flex items-center gap-2">
           {onBack && (
             <button
               onClick={onBack}
-              className="md:hidden p-1 text-zinc-400 hover:text-zinc-100 transition-colors mr-1 cursor-pointer"
+              className="md:hidden p-1 text-ig-secondary hover:text-zinc-100 transition-colors mr-1 cursor-pointer"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
@@ -748,16 +747,16 @@ export function ChatArea({
           >
             {renderAvatar(partnerImage, "w-9 h-9 md:w-11 md:h-11")}
             <div className="flex flex-col">
-              <span className="text-zinc-50 font-semibold text-sm md:text-base">
+              <span className="text-ig-fg font-semibold text-sm md:text-base">
                 {partnerUsername}
               </span>
-              <span className="text-zinc-400 text-[10px] md:text-xs">
+              <span className="text-ig-secondary text-[10px] md:text-xs">
                 Active now
               </span>
             </div>
           </Link>
         </div>
-        <div className="flex items-center gap-6 text-zinc-50">
+        <div className="flex items-center gap-6 text-ig-fg">
           <button className="hover:text-zinc-300 transition-colors">
             <Phone className="w-6 h-6" />
           </button>
@@ -775,20 +774,20 @@ export function ChatArea({
         onScroll={handleScroll}
       >
         {messages.length === 0 && !isLoading ? (
-          <div className="flex flex-col items-center justify-center h-full text-zinc-500">
+          <div className="flex flex-col items-center justify-center h-full text-ig-secondary">
             <Link
               href={`/${partnerUsername}`}
               className="hover:opacity-90 transition-opacity"
             >
               {renderAvatar(partnerImage, "w-24 h-24 mb-4")}
             </Link>
-            <p className="text-zinc-50 font-semibold text-lg">
+            <p className="text-ig-fg font-semibold text-lg">
               {partnerUsername}
             </p>
             <p className="text-sm mb-4">Instagram</p>
             <Link
               href={`/${partnerUsername}`}
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-50 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors"
+              className="bg-ig-sidebar-hover hover:bg-zinc-700 text-ig-fg px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors"
             >
               View profile
             </Link>
@@ -797,7 +796,7 @@ export function ChatArea({
           <>
             {/* Example date boundary */}
             <div className="flex justify-center my-4">
-              <span className="text-xs text-zinc-500 font-medium">
+              <span className="text-xs text-ig-secondary font-medium">
                 29.02.2024, 23:12
               </span>
             </div>
@@ -887,7 +886,7 @@ export function ChatArea({
                               borderClass,
                               isOwn
                                 ? "bg-[#3797F0] text-white border-transparent"
-                                : "bg-zinc-800/85 text-zinc-50 border-zinc-700/20",
+                                : "bg-zinc-800/85 text-ig-fg border-zinc-700/20",
                             ),
                       )}
                     >
@@ -938,7 +937,7 @@ export function ChatArea({
                             />
                           )}
                           {!hasText && (
-                            <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-full text-[9px] text-zinc-300 font-medium select-none shadow-sm pointer-events-none z-10">
+                            <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-full text-[9px] text-ig-fg font-medium select-none shadow-sm pointer-events-none z-10">
                               {msg.sendMassageDate
                                 ? msg.sendMassageDate.slice(11, 16)
                                 : ""}
@@ -973,7 +972,7 @@ export function ChatArea({
                           <span
                             className={clsx(
                               "text-[9px] font-medium select-none",
-                              isOwn ? "text-blue-100/70" : "text-zinc-500",
+                              isOwn ? "text-blue-100/70" : "text-ig-secondary",
                             )}
                           >
                             {msg.sendMassageDate
@@ -986,7 +985,7 @@ export function ChatArea({
                     {/* Minimalistic Delete Button */}
                     <button
                       onClick={() => handleDeleteMessage(msg.messageId)}
-                      className="block hidden lg:group-hover:block p-1.5 hover:bg-zinc-800/60 rounded-lg text-zinc-500 hover:text-red-500 transition-all self-center shrink-0 cursor-pointer"
+                      className="block hidden lg:group-hover:block p-1.5 hover:bg-zinc-800/60 rounded-lg text-ig-secondary hover:text-red-500 transition-all self-center shrink-0 cursor-pointer"
                       title="Delete message"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -1003,14 +1002,14 @@ export function ChatArea({
       {showScrollButton && (
         <button
           onClick={scrollToBottom}
-          className="absolute bottom-[88px] right-6 z-40 bg-zinc-800 hover:bg-zinc-700 text-zinc-50 p-2.5 rounded-full shadow-lg border border-zinc-700/50 transition-all cursor-pointer"
+          className="absolute bottom-[88px] right-6 z-40 bg-ig-sidebar-hover hover:bg-zinc-700 text-ig-fg p-2.5 rounded-full shadow-lg border border-zinc-700/50 transition-all cursor-pointer"
         >
           <ChevronDown className="w-5 h-5" />
         </button>
       )}
 
       {/* Input Area */}
-      <div className="p-4 pt-2 shrink-0 bg-zinc-950">
+      <div className="p-4 pt-2 shrink-0 bg-ig-bg">
         <form
           onSubmit={handleSubmit(onSubmit)}
           className="border border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/60 rounded-[28px] px-1.5 py-1.5 flex flex-col focus-within:bg-zinc-900/80 focus-within:border-zinc-700 transition-all duration-200"
@@ -1036,11 +1035,11 @@ export function ChatArea({
                   <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900 border border-zinc-700/30">
                     {selectedFile?.name?.toLowerCase().includes("voice") ||
                     selectedFile?.type?.toLowerCase().includes("voice") ? (
-                      <Mic className="w-5 h-5 text-zinc-300" />
+                      <Mic className="w-5 h-5 text-ig-fg" />
                     ) : (
-                      <Music className="w-5 h-5 text-zinc-300" />
+                      <Music className="w-5 h-5 text-ig-fg" />
                     )}
-                    <span className="text-[9px] text-zinc-400 mt-0.5 truncate max-w-[48px] px-0.5 font-medium">
+                    <span className="text-[9px] text-ig-secondary mt-0.5 truncate max-w-[48px] px-0.5 font-medium">
                       {selectedFile?.name?.toLowerCase().includes("voice")
                         ? "Voice"
                         : "Audio"}
@@ -1056,7 +1055,7 @@ export function ChatArea({
                 <button
                   type="button"
                   onClick={() => setValue("file", undefined)}
-                  className="absolute top-1 right-1 w-4 h-4 bg-black/60 hover:bg-black/90 rounded-full flex items-center justify-center text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                  className="absolute top-1 right-1 w-4 h-4 bg-black/60 hover:bg-black/90 rounded-full flex items-center justify-center text-ig-fg hover:text-white transition-colors cursor-pointer"
                 >
                   <X className="w-2.5 h-2.5" />
                 </button>
@@ -1071,14 +1070,14 @@ export function ChatArea({
               <button
                 type="button"
                 onClick={() => setIsEmojiOpen(!isEmojiOpen)}
-                className="p-2.5 text-zinc-50 hover:text-zinc-300 transition-colors"
+                className="p-2.5 text-ig-fg hover:text-zinc-300 transition-colors"
               >
                 <Smile className="w-6 h-6" />
               </button>
               {isEmojiOpen && (
-                <div className="absolute bottom-12 left-0 z-50 w-[300px] h-72 bg-zinc-900 border border-zinc-800 rounded-xl p-3 shadow-2xl flex flex-col">
-                  <div className="flex items-center justify-between mb-3 border-b border-zinc-800 pb-2">
-                    <span className="text-zinc-400 text-sm font-semibold">
+                <div className="absolute bottom-12 left-0 z-50 w-[300px] h-72 bg-ig-card-bg border border-ig-border rounded-xl p-3 shadow-2xl flex flex-col">
+                  <div className="flex items-center justify-between mb-3 border-b border-ig-border pb-2">
+                    <span className="text-ig-secondary text-sm font-semibold">
                       Emojis
                     </span>
                   </div>
@@ -1090,7 +1089,7 @@ export function ChatArea({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") e.preventDefault();
                     }}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-zinc-50 focus:outline-none focus:border-zinc-700 mb-3"
+                    className="w-full bg-ig-bg border border-ig-border rounded-lg px-3 py-1.5 text-sm text-ig-fg focus:outline-none focus:border-zinc-700 mb-3"
                   />
                   <div className="flex-1 overflow-y-auto grid grid-cols-8 gap-2 scrollbar-thin content-start">
                     {EMOJI_LIST.filter((e) =>
@@ -1118,7 +1117,7 @@ export function ChatArea({
                     formInputRef(e);
                     inputRef.current = e;
                   }}
-                  className="w-full bg-transparent text-zinc-50 placeholder-zinc-500 outline-none text-sm"
+                  className="w-full bg-transparent text-ig-fg placeholder-zinc-500 outline-none text-sm"
                   placeholder="Message..."
                   autoComplete="off"
                 />
@@ -1136,14 +1135,14 @@ export function ChatArea({
                   <button
                     type="button"
                     onClick={handleStartRecording}
-                    className="p-1.5 text-zinc-50 hover:text-zinc-300 transition-colors"
+                    className="p-1.5 text-ig-fg hover:text-zinc-300 transition-colors"
                   >
                     <Mic className="w-6 h-6" />
                   </button>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-1.5 text-zinc-50 hover:text-zinc-300 transition-colors"
+                    className="p-1.5 text-ig-fg hover:text-zinc-300 transition-colors"
                   >
                     <ImageIcon className="w-6 h-6" />
                   </button>
@@ -1189,7 +1188,7 @@ export function ChatArea({
           <button
             type="button"
             onClick={() => setPreviewMedia(null)}
-            className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-100 transition-colors p-2 z-50"
+            className="absolute top-4 right-4 text-ig-secondary hover:text-zinc-100 transition-colors p-2 z-50"
           >
             <X className="w-8 h-8" />
           </button>
@@ -1208,27 +1207,27 @@ export function ChatArea({
       )}
       {deleteMessageId !== null && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-[1px]">
-          <div className="bg-[#262626] w-[260px] md:w-[400px] rounded-xl overflow-hidden flex flex-col text-center shadow-2xl border border-zinc-800 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-ig-card-bg w-[260px] md:w-[400px] rounded-xl overflow-hidden flex flex-col text-center shadow-2xl border border-ig-border animate-in fade-in zoom-in-95 duration-150">
             <div className="p-6 flex flex-col gap-2">
-              <h3 className="text-zinc-50 text-lg font-semibold leading-snug">
+              <h3 className="text-ig-fg text-lg font-semibold leading-snug">
                 Unsend message?
               </h3>
-              <p className="text-zinc-400 text-xs leading-relaxed px-2">
+              <p className="text-ig-secondary text-xs leading-relaxed px-2">
                 Unsending will remove the message for everyone. People may have already seen it.
               </p>
             </div>
             
-            <div className="flex flex-col border-t border-zinc-800">
+            <div className="flex flex-col border-t border-ig-border">
               <button
                 onClick={handleConfirmDeleteMessage}
                 disabled={isDeletingMessage}
-                className="py-3 text-red-500 font-bold text-sm hover:bg-white/5 active:bg-white/10 transition-colors border-b border-zinc-800 disabled:opacity-50 cursor-pointer"
+                className="py-3 text-red-500 font-bold text-sm hover:bg-white/5 active:bg-white/10 transition-colors border-b border-ig-border disabled:opacity-50 cursor-pointer"
               >
                 {isDeletingMessage ? "Unsending..." : "Unsend"}
               </button>
               <button
                 onClick={() => setDeleteMessageId(null)}
-                className="py-3 text-zinc-50 font-normal text-sm hover:bg-white/5 active:bg-white/10 transition-colors cursor-pointer"
+                className="py-3 text-ig-fg font-normal text-sm hover:bg-white/5 active:bg-white/10 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
