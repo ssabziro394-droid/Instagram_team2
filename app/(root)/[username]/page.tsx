@@ -7,8 +7,9 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
 } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import CreatePostModalGate from "@/components/create/CreatePostModalGate";
 import EditProfileModal from "@/components/profile/EditProfileModal";
@@ -20,7 +21,7 @@ import {
   useUpdateUserProfileMutation,
   useGetPostFavoritesQuery,
 } from "@/store/api/profileApi";
-import { useGetUsersQuery } from "@/store/api/searchApi";
+import { useGetUsersQuery, useAddUserSearchHistoryMutation } from "@/store/api/searchApi";
 import { useGetProfilePostsQuery } from "@/store/api/postsApi";
 import PostDetailModal from "@/components/profile/PostDetailModal";
 import { getUsernameFromToken } from "@/lib/utils";
@@ -109,6 +110,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<"POSTS" | "SAVED">("POSTS");
 
   const myProfileQuery = useGetMyProfileQuery();
+  const [addUserSearchHistory] = useAddUserSearchHistoryMutation();
 
   const isOwnProfile = useMemo(() => {
     if (!usernameParam) return true;
@@ -129,7 +131,10 @@ export default function ProfilePage() {
     return usernameParam.toLowerCase() === ownUsername.toLowerCase();
   }, [usernameParam, myProfileQuery.data, myProfileQuery.isLoading, myProfileQuery.isUninitialized]);
 
-  const shouldSearch = !isOwnProfile && !!usernameParam;
+  const searchParamsHook = useSearchParams();
+  const queryUserId = searchParamsHook?.get("id") || searchParamsHook?.get("userId") || "";
+
+  const shouldSearch = !isOwnProfile && !!usernameParam && !queryUserId;
   const searchUsersQuery = useGetUsersQuery(
     usernameParam,
     { skip: !shouldSearch }
@@ -147,21 +152,22 @@ export default function ProfilePage() {
     ) ?? usersArray[0];
   }, [searchUsersQuery.data, usernameParam]);
 
-  const targetUserId = targetUser?.id ?? targetUser?.userId;
+  const targetUserId = queryUserId || targetUser?.id || targetUser?.userId || "";
 
   const targetProfileQuery = useGetUserProfileByIdQuery(
-    targetUserId ?? "",
+    targetUserId,
     { skip: !targetUserId || isOwnProfile }
   );
 
   const activeProfile = isOwnProfile ? myProfileQuery.data : targetProfileQuery.data;
+  
   const isProfileLoading = isOwnProfile
-    ? myProfileQuery.isLoading || myProfileQuery.isFetching
-    : myProfileQuery.isLoading || myProfileQuery.isFetching || searchUsersQuery.isLoading || targetProfileQuery.isLoading || targetProfileQuery.isFetching;
+    ? (myProfileQuery.isLoading || !activeProfile)
+    : (searchUsersQuery.isLoading || (!targetUserId && !searchUsersQuery.isError && !searchUsersQuery.isSuccess) || (targetProfileQuery.isLoading && !activeProfile));
 
   const isProfileError = isOwnProfile
-    ? myProfileQuery.isError
-    : myProfileQuery.isError || (searchUsersQuery.isSuccess && !targetUser) || targetProfileQuery.isError;
+    ? !!myProfileQuery.isError
+    : !!(searchUsersQuery.isError || targetProfileQuery.isError || (searchUsersQuery.isSuccess && !targetUser && !searchUsersQuery.isLoading));
 
   const currentUserId = getProfileUserId(activeProfile);
   const [updateUserProfile, updateState] = useUpdateUserProfileMutation();
@@ -212,6 +218,55 @@ export default function ProfilePage() {
       console.log("profile:", activeProfile);
     }
   }, [activeProfile]);
+
+  const lastSavedUserIdRef = useRef<string | null>(null);
+  const profileId = activeProfile?.id ?? activeProfile?.userId;
+
+  useEffect(() => {
+    if (!isOwnProfile && activeProfile && profileId && lastSavedUserIdRef.current !== String(profileId)) {
+      lastSavedUserIdRef.current = String(profileId);
+      const saveUserToHistory = async () => {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const profile = activeProfile as any;
+          const id = profile.id ?? profile.userId ?? "";
+          const username = profile.username ?? profile.userName ?? "";
+          const fullname =
+            profile.fullName ??
+            [profile.firstName, profile.lastName].filter(Boolean).join(" ") ??
+            "";
+          const avatar =
+            profile.avatar ??
+            profile.avatarUrl ??
+            profile.image ??
+            null;
+          const followers =
+            profile.followersCount ??
+            profile.subscribersCount ??
+            0;
+          const isVerified =
+            profile.isVerified ??
+            profile.verified ??
+            false;
+
+          await addUserSearchHistory({
+            type: "user",
+            user: {
+              id: String(id),
+              username: String(username),
+              fullname: String(fullname),
+              avatar: avatar ? String(avatar) : null,
+              followers: Number(followers),
+              isVerified: Boolean(isVerified),
+            },
+          }).unwrap();
+        } catch (err) {
+          console.error("Failed to auto-save visited profile to search history:", err);
+        }
+      };
+      void saveUserToHistory();
+    }
+  }, [isOwnProfile, activeProfile, profileId, addUserSearchHistory]);
 
   const profileWithPostCount = useMemo(() => {
     if (!activeProfile) {
@@ -278,6 +333,18 @@ export default function ProfilePage() {
     },
     [myProfileQuery, updateUserProfile],
   );
+
+  if (isProfileLoading) {
+    return (
+      <div className="min-h-full bg-ig-bg text-ig-fg">
+        <ProfileHeader
+          profile={null}
+          isLoading={true}
+          onEdit={() => {}}
+        />
+      </div>
+    );
+  }
 
   if (isProfileError) {
     return (

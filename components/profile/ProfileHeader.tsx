@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { logout } from "@/store/slices/authSlice";
-import { Archive, Settings, X, ChevronLeft, ChevronRight, Heart, Loader2 } from "lucide-react";
+import { Archive, Settings, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { UserProfile } from "@/types/profile";
 import {
   useProfileFollowUserMutation,
   useProfileUnfollowUserMutation,
   useGetIsFollowUserProfileByIdQuery,
+  useProfileGetSubscribersQuery,
+  useProfileGetSubscriptionsQuery,
 } from "@/store/api/profileApi";
 import { useGetUserStoriesQuery, useGetMyStoriesQuery } from "@/store/api/feedApi";
 import { getFileUrl } from "@/lib/file";
@@ -19,19 +22,20 @@ type ProfileHeaderProps = {
   onEdit: () => void;
 };
 
-function getDisplayName(profile: UserProfile) {
+function getDisplayName(profile: UserProfile | null | undefined) {
+  if (!profile) return "";
   return (
     profile.fullName ||
     [profile.firstName, profile.lastName].filter(Boolean).join(" ")
   );
 }
 
-function getUsername(profile: UserProfile) {
-  return profile.username || profile.userName || "Профиль";
+function getUsername(profile: UserProfile | null | undefined) {
+  return profile?.username || profile?.userName || "Профиль";
 }
 
-function getBio(profile: UserProfile) {
-  return profile.bio || profile.about || "";
+function getBio(profile: UserProfile | null | undefined) {
+  return profile?.bio || profile?.about || "";
 }
 
 function normalizeAvatarUrl(value?: string) {
@@ -51,7 +55,8 @@ function normalizeAvatarUrl(value?: string) {
   return `https://instagram-api.softclub.tj/images/${cleanValue}`;
 }
 
-function getAvatarUrl(profile: UserProfile) {
+function getAvatarUrl(profile: UserProfile | null | undefined) {
+  if (!profile) return "";
   const avatar =
     profile.avatar ||
     profile.image ||
@@ -61,16 +66,16 @@ function getAvatarUrl(profile: UserProfile) {
   return normalizeAvatarUrl(avatar);
 }
 
-function getPostsCount(profile: UserProfile) {
-  return profile.postsCount ?? profile.postCount ?? 0;
+function getPostsCount(profile: UserProfile | null | undefined) {
+  return profile?.postsCount ?? profile?.postCount ?? 0;
 }
 
-function getFollowersCount(profile: UserProfile) {
-  return profile.followersCount ?? profile.subscribersCount ?? 0;
+function getFollowersCount(profile: UserProfile | null | undefined) {
+  return profile?.followersCount ?? profile?.subscribersCount ?? 0;
 }
 
-function getFollowingCount(profile: UserProfile) {
-  return profile.followingCount ?? profile.subscriptionsCount ?? 0;
+function getFollowingCount(profile: UserProfile | null | undefined) {
+  return profile?.followingCount ?? profile?.subscriptionsCount ?? 0;
 }
 
 function formatCount(count: number) {
@@ -108,6 +113,23 @@ export default function ProfileHeader({
 }: ProfileHeaderProps) {
   const [showSettings, setShowSettings] = useState(false);
   const dispatch = useDispatch();
+  const router = useRouter();
+  const [showUsersModal, setShowUsersModal] = useState<{
+    type: "subscribers" | "subscriptions";
+    title: string;
+  } | null>(null);
+
+  const profileUserId = String(profile?.id ?? profile?.userId ?? "");
+
+  const { data: subscribersList, isLoading: isSubscribersLoading } = useProfileGetSubscribersQuery(
+    profileUserId,
+    { skip: showUsersModal?.type !== "subscribers" || !profileUserId }
+  );
+
+  const { data: subscriptionsList, isLoading: isSubscriptionsLoading } = useProfileGetSubscriptionsQuery(
+    profileUserId,
+    { skip: showUsersModal?.type !== "subscriptions" || !profileUserId }
+  );
   const [followUser, { isLoading: isFollowingLoading }] = useProfileFollowUserMutation();
   const [unfollowUser, { isLoading: isUnfollowingLoading }] = useProfileUnfollowUserMutation();
 
@@ -177,6 +199,27 @@ export default function ProfileHeader({
     ? localIsFollowing
     : (isFollowingFromApi ?? profile?.isFollowing ?? false);
 
+  const baseFollowersCount = getFollowersCount(profile);
+  
+  // Calculate optimistic followers count offset
+  let followersOffset = 0;
+  if (localIsFollowing !== undefined) {
+    const originalFollowing = isFollowingFromApi ?? profile?.isFollowing ?? false;
+    if (localIsFollowing && !originalFollowing) {
+      followersOffset = 1;
+    } else if (!localIsFollowing && originalFollowing) {
+      followersOffset = -1;
+    }
+  }
+  const followersCount = Math.max(0, baseFollowersCount + followersOffset);
+
+  useEffect(() => {
+    if (localIsFollowing !== undefined && isFollowingFromApi === localIsFollowing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLocalIsFollowing(undefined);
+    }
+  }, [isFollowingFromApi, localIsFollowing]);
+
   const handleLogout = () => {
     dispatch(logout());
     setShowSettings(false);
@@ -193,7 +236,7 @@ export default function ProfileHeader({
   const handleFollow = async () => {
     const userId = profile.id ?? profile.userId;
     if (!userId) return;
-    if (isFollowCheckLoading) return; // Wait for API check
+    if (isFollowingLoading || isUnfollowingLoading || isFollowCheckLoading) return;
 
     const currentlyFollowing = isFollowing;
 
@@ -206,8 +249,6 @@ export default function ProfileHeader({
       } else {
         await followUser({ followingUserId: userId }).unwrap();
       }
-      // After success — reset to let API re-fetch give the truth
-      setLocalIsFollowing(undefined);
     } catch (error) {
       // Revert on error
       setLocalIsFollowing(currentlyFollowing);
@@ -384,18 +425,28 @@ export default function ProfileHeader({
               </strong>{" "}
               <span className="text-ig-fg">публикаций</span>
             </span>
-            <span>
+            <button
+              type="button"
+              onClick={() => setShowUsersModal({ type: "subscribers", title: "Подписчики" })}
+              className="hover:opacity-75 transition cursor-pointer text-center sm:text-left"
+              style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "inherit" }}
+            >
               <strong className="font-semibold text-ig-fg">
-                {formatCount(getFollowersCount(profile))}
+                {formatCount(followersCount)}
               </strong>{" "}
               <span className="text-ig-fg">подписчиков</span>
-            </span>
-            <span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowUsersModal({ type: "subscriptions", title: "Подписки" })}
+              className="hover:opacity-75 transition cursor-pointer text-center sm:text-left"
+              style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "inherit" }}
+            >
               <strong className="font-semibold text-ig-fg">
                 {formatCount(getFollowingCount(profile))}
               </strong>{" "}
               <span className="text-ig-fg">подписок</span>
-            </span>
+            </button>
           </div>
 
           <div className="text-sm leading-5">
@@ -478,6 +529,124 @@ export default function ProfileHeader({
             >
               Отмена
             </button>
+          </div>
+        </div>
+      )}
+      {/* Subscribers / Subscriptions Modal */}
+      {showUsersModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 text-white shadow-2xl">
+            {/* Header */}
+            <div className="relative flex items-center justify-center border-b border-zinc-900 py-3.5">
+              <h2 className="text-base font-semibold">{showUsersModal.title}</h2>
+              <button
+                type="button"
+                onClick={() => setShowUsersModal(null)}
+                className="absolute right-4 text-zinc-400 hover:text-white transition animate-none cursor-pointer"
+                aria-label="Закрыть"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Content List */}
+            <div className="max-h-96 min-h-[200px] overflow-y-auto p-4 flex flex-col gap-4">
+              {showUsersModal.type === "subscribers" ? (
+                isSubscribersLoading ? (
+                  <div className="flex flex-1 items-center justify-center py-10">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-500 border-t-white" />
+                  </div>
+                ) : !subscribersList || subscribersList.length === 0 ? (
+                  <div className="flex flex-1 items-center justify-center py-10 text-zinc-400 text-sm">
+                    Нет подписчиков
+                  </div>
+                ) : (
+                  subscribersList.map((u, index) => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const userInfo = (u as unknown as Record<string, any>).userShortInfo ?? u;
+                    const uUsername = userInfo.username ?? userInfo.userName ?? "Профиль";
+                    const uDisplayName = userInfo.fullName ?? userInfo.fullname ?? [userInfo.firstName, userInfo.lastName].filter(Boolean).join(" ") ?? "";
+                    const uAvatar = normalizeAvatarUrl(userInfo.userPhoto ?? userInfo.avatar ?? userInfo.image ?? userInfo.avatarUrl ?? userInfo.imageUrl);
+                    const uInitial = uUsername.charAt(0).toUpperCase();
+                    const uId = userInfo.userId ?? userInfo.id ?? "";
+
+                    return (
+                      <div
+                        key={String(uId || index)}
+                        className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition"
+                        onClick={() => {
+                          setShowUsersModal(null);
+                          router.push(`/${encodeURIComponent(uUsername)}?id=${encodeURIComponent(String(uId))}`);
+                        }}
+                      >
+                        <div
+                          className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-ig-border bg-ig-card-bg bg-cover bg-center text-lg font-semibold text-ig-secondary"
+                          style={uAvatar ? { backgroundImage: `url(${uAvatar})` } : undefined}
+                        >
+                          {!uAvatar && uInitial}
+                        </div>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-sm font-semibold text-ig-fg truncate hover:underline">
+                            {uUsername}
+                          </span>
+                          {uDisplayName && (
+                            <span className="text-xs text-ig-secondary truncate">
+                              {uDisplayName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )
+              ) : isSubscriptionsLoading ? (
+                <div className="flex flex-1 items-center justify-center py-10">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-500 border-t-white" />
+                </div>
+              ) : !subscriptionsList || subscriptionsList.length === 0 ? (
+                <div className="flex flex-1 items-center justify-center py-10 text-zinc-400 text-sm">
+                  Нет подписок
+                </div>
+              ) : (
+                subscriptionsList.map((u, index) => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const userInfo = (u as unknown as Record<string, any>).userShortInfo ?? u;
+                  const uUsername = userInfo.username ?? userInfo.userName ?? "Профиль";
+                  const uDisplayName = userInfo.fullName ?? userInfo.fullname ?? [userInfo.firstName, userInfo.lastName].filter(Boolean).join(" ") ?? "";
+                  const uAvatar = normalizeAvatarUrl(userInfo.userPhoto ?? userInfo.avatar ?? userInfo.image ?? userInfo.avatarUrl ?? userInfo.imageUrl);
+                  const uInitial = uUsername.charAt(0).toUpperCase();
+                  const uId = userInfo.userId ?? userInfo.id ?? "";
+
+                  return (
+                    <div
+                      key={String(uId || index)}
+                      className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition"
+                      onClick={() => {
+                        setShowUsersModal(null);
+                        router.push(`/${encodeURIComponent(uUsername)}?id=${encodeURIComponent(String(uId))}`);
+                      }}
+                    >
+                      <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-ig-border bg-ig-card-bg bg-cover bg-center text-lg font-semibold text-ig-secondary"
+                        style={uAvatar ? { backgroundImage: `url(${uAvatar})` } : undefined}
+                      >
+                        {!uAvatar && uInitial}
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-sm font-semibold text-ig-fg truncate hover:underline">
+                          {uUsername}
+                        </span>
+                        {uDisplayName && (
+                          <span className="text-xs text-ig-secondary truncate">
+                            {uDisplayName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       )}
