@@ -54,7 +54,8 @@ function getAvatarFilename(user: SearchUser) {
 
 function formatFollowers(n?: number): string {
   if (!n) return "";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(".0", "")} млн`;
+  if (n >= 1_000_000)
+    return `${(n / 1_000_000).toFixed(1).replace(".0", "")} млн`;
   if (n >= 1_000) return `${Math.round(n / 1_000)} тыс.`;
   return String(n);
 }
@@ -74,6 +75,8 @@ function getSubline(user: SearchUser): string {
 }
 
 function historyUser(history: SearchHistory): SearchUser {
+  console.log(history);
+
   return (
     history.user ??
     history.searchedUser ?? {
@@ -163,13 +166,17 @@ function UserRow({
         <Avatar user={user} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
-            <span className="text-sm font-semibold text-white truncate">{username}</span>
+            <span className="text-sm font-semibold text-white truncate">
+              {username}
+            </span>
             {isVerified && (
               <BadgeCheck className="h-3.5 w-3.5 fill-sky-500 text-black shrink-0" />
             )}
           </div>
           {subline && (
-            <span className="text-xs text-zinc-500 block truncate mt-0.5">{subline}</span>
+            <span className="text-xs text-zinc-500 block truncate mt-0.5">
+              {subline}
+            </span>
           )}
         </div>
       </button>
@@ -236,7 +243,9 @@ export default function SearchResults({
 
         {!isLoading && !isError && users.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <p className="text-sm font-semibold text-white">Результаты не найдены</p>
+            <p className="text-sm font-semibold text-white">
+              Результаты не найдены
+            </p>
             <p className="text-sm text-zinc-500">Поиск: «{query}»</p>
           </div>
         )}
@@ -253,6 +262,7 @@ export default function SearchResults({
       </div>
     );
   }
+  console.log(histories);
 
   // ── Recent history ──────────────────────────────────────────────────────
   return (
@@ -297,7 +307,9 @@ export default function SearchResults({
                   className="flex flex-1 items-center gap-3 px-4 py-2.5 text-left"
                 >
                   <HistoryTextIcon />
-                  <span className="text-sm font-medium text-white truncate">{text}</span>
+                  <span className="text-sm font-medium text-white truncate">
+                    {text}
+                  </span>
                 </button>
                 <DeleteBtn
                   disabled={!hid || isDeleting}
