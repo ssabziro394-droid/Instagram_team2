@@ -357,7 +357,7 @@ export const reelsApi = baseApi.injectEndpoints({
       }),
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 });
 
 // ---------------------------------------------------------------------------

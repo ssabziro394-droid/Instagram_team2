@@ -18,6 +18,7 @@ import {
   useGetMyProfileQuery,
   useGetUserProfileByIdQuery,
   useUpdateUserProfileMutation,
+  useGetPostFavoritesQuery,
 } from "@/store/api/profileApi";
 import { useGetUsersQuery } from "@/store/api/searchApi";
 import { useGetProfilePostsQuery } from "@/store/api/postsApi";
@@ -105,6 +106,7 @@ export default function ProfilePage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [actionError, setActionError] = useState("");
   const [selectedPostId, setSelectedPostId] = useState<string | number | null>(null);
+  const [activeTab, setActiveTab] = useState<"POSTS" | "SAVED">("POSTS");
 
   const myProfileQuery = useGetMyProfileQuery();
 
@@ -135,10 +137,14 @@ export default function ProfilePage() {
 
   const targetUser = useMemo(() => {
     if (!searchUsersQuery.data || !usernameParam) return null;
-    return searchUsersQuery.data.find(
+    // Handle both legacy array response and new paginated object response
+    const usersArray: any[] = Array.isArray(searchUsersQuery.data)
+      ? searchUsersQuery.data
+      : (searchUsersQuery.data as any)?.data ?? [];
+    return usersArray.find(
       (u) =>
         (u.username ?? u.userName ?? "").toLowerCase() === usernameParam.toLowerCase()
-    ) ?? searchUsersQuery.data[0];
+    ) ?? usersArray[0];
   }, [searchUsersQuery.data, usernameParam]);
 
   const targetUserId = targetUser?.id ?? targetUser?.userId;
@@ -176,12 +182,30 @@ export default function ProfilePage() {
   const isPostsError = isPostsErrorQuery;
   const hasLoadedPosts = !isPostsLoading && postsData !== undefined;
 
+  const {
+    data: savedData,
+    isLoading: isSavedLoading,
+    isError: isSavedErrorQuery,
+    error: savedErrorQuery,
+    refetch: refetchSaved,
+  } = useGetPostFavoritesQuery(undefined, { skip: !isOwnProfile || activeTab !== "SAVED" });
+
+  const savedPosts = savedData ?? [];
+  const savedError = savedErrorQuery ? "Не удалось загрузить сохраненные публикации." : null;
+
+  const displayPosts = activeTab === "POSTS" ? posts : savedPosts;
+  const isDisplayLoading = activeTab === "POSTS" 
+    ? (isPostsLoading || (currentUserId !== null && !hasLoadedPosts))
+    : isSavedLoading;
+  const isDisplayError = activeTab === "POSTS" ? isPostsErrorQuery : isSavedErrorQuery;
+  const displayErrorMessage = activeTab === "POSTS" ? postsError : savedError;
+
   const activePost = useMemo(() => {
     if (selectedPostId === null) return null;
-    return posts.find(
+    return displayPosts.find(
       (p) => String(p.postId) === String(selectedPostId) || String(p.id) === String(selectedPostId)
     );
-  }, [posts, selectedPostId]);
+  }, [displayPosts, selectedPostId]);
 
   useEffect(() => {
     if (activeProfile) {
@@ -235,7 +259,10 @@ export default function ProfilePage() {
     if (currentUserId) {
       void refetchPosts();
     }
-  }, [refetchPosts, myProfileQuery, targetProfileQuery, isOwnProfile, targetUserId, currentUserId]);
+    if (isOwnProfile) {
+      void refetchSaved();
+    }
+  }, [refetchPosts, refetchSaved, myProfileQuery, targetProfileQuery, isOwnProfile, targetUserId, currentUserId]);
 
   const handleSaveProfile = useCallback(
     async (values: UpdateUserProfileRequest) => {
@@ -294,15 +321,40 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {isOwnProfile && (
+        <div className="flex justify-center border-t border-ig-border">
+          <div className="flex gap-12">
+            <button
+              onClick={() => setActiveTab("POSTS")}
+              className={`flex items-center gap-2 border-t text-xs font-semibold tracking-widest uppercase py-4 transition-colors ${
+                activeTab === "POSTS"
+                  ? "border-ig-fg text-ig-fg"
+                  : "border-transparent text-ig-secondary"
+              }`}
+            >
+              <svg aria-label="Публикации" className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" clipRule="evenodd" d="M12 21a9 9 0 100-18 9 9 0 000 18zm5.5-9v-4.5H13v4.5h4.5zm-5.5 0v-4.5H7.5v4.5H12zm5.5 1H13v4.5h4.5v-4.5zm-5.5 0H7.5v4.5H12v-4.5z" /></svg>
+              Публикации
+            </button>
+            <button
+              onClick={() => setActiveTab("SAVED")}
+              className={`flex items-center gap-2 border-t text-xs font-semibold tracking-widest uppercase py-4 transition-colors ${
+                activeTab === "SAVED"
+                  ? "border-ig-fg text-ig-fg"
+                  : "border-transparent text-ig-secondary"
+              }`}
+            >
+              <svg aria-label="Сохраненное" className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24"><polygon fill="none" points="20 21 12 13.44 4 21 4 3 20 3 20 21" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" /></svg>
+              Сохраненное
+            </button>
+          </div>
+        </div>
+      )}
+
       <ProfileGrid
-        posts={posts}
-        isLoading={
-          isProfileLoading ||
-          isPostsLoading ||
-          (currentUserId !== null && !hasLoadedPosts)
-        }
-        isError={isPostsError}
-        errorMessage={postsError ?? "Не удалось загрузить публикации."}
+        posts={displayPosts}
+        isLoading={isProfileLoading || isDisplayLoading}
+        isError={isDisplayError}
+        errorMessage={displayErrorMessage ?? "Не удалось загрузить публикации."}
         onCreatePost={handleOpenCreatePost}
         onPostClick={(post) => {
           setSelectedPostId(post.postId ?? post.id ?? null);

@@ -24,8 +24,8 @@ import {
   useAddPostFavoriteMutation,
 } from "@/store/api/reelsApi";
 import {
-  useFollowUserMutation,
-  useUnfollowUserMutation,
+  useProfileFollowUserMutation,
+  useProfileUnfollowUserMutation,
   useGetMyProfileQuery,
 } from "@/store/api/profileApi";
 import { MOCK_COMMENTS } from "./mockData";
@@ -67,8 +67,8 @@ export default function ExploreReelModal({
   const [addComment] = useAddCommentMutation();
   const [deleteComment] = useDeleteCommentMutation();
   const [addPostFavorite] = useAddPostFavoriteMutation();
-  const [followUser] = useFollowUserMutation();
-  const [unfollowUser] = useUnfollowUserMutation();
+  const [followUser] = useProfileFollowUserMutation();
+  const [unfollowUser] = useProfileUnfollowUserMutation();
 
   // Combine initial/latest reel states
   const reel = latestPost || initialReel;

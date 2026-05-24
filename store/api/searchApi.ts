@@ -75,12 +75,29 @@ function historyIdParams(request: DeleteSearchHistoryRequest | string | number) 
 export const searchApi = baseApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
-    getSearchUsers: builder.query<SearchUser[], SearchUsersQuery | string | void>({
+    getSearchUsers: builder.query<
+      { data: SearchUser[]; totalPage: number; totalRecord: number; pageNumber: number; pageSize: number } | SearchUser[],
+      SearchUsersQuery | string | void
+    >({
       query: (query) => ({
         url: "User/get-users",
         params: searchParams(query),
       }),
-      transformResponse: (response: unknown) => unwrapList<SearchUser>(response),
+      transformResponse: (response: unknown) => {
+        // If response has pagination metadata, preserve it
+        if (isRecord(response) && Array.isArray((response as any).data)) {
+          const r = response as any;
+          return {
+            data: r.data as SearchUser[],
+            totalPage: r.totalPage ?? 1,
+            totalRecord: r.totalRecord ?? 0,
+            pageNumber: r.pageNumber ?? 1,
+            pageSize: r.pageSize ?? 10,
+          };
+        }
+        // Fallback: plain array
+        return unwrapList<SearchUser>(response);
+      },
       providesTags: [{ type: "User", id: "SEARCH_USERS" }],
     }),
     addSearchHistory: builder.mutation<

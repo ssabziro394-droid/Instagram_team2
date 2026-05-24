@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { logout } from "@/store/slices/authSlice";
-import { Archive, Settings } from "lucide-react";
+import { Archive, Settings, X, ChevronLeft, ChevronRight, Heart, Loader2 } from "lucide-react";
 import type { UserProfile } from "@/types/profile";
 import {
   useProfileFollowUserMutation,
   useProfileUnfollowUserMutation,
   useGetIsFollowUserProfileByIdQuery,
 } from "@/store/api/profileApi";
+import { useGetUserStoriesQuery, useGetMyStoriesQuery } from "@/store/api/feedApi";
+import { getFileUrl } from "@/lib/file";
 
 type ProfileHeaderProps = {
   profile: UserProfile | null;
@@ -109,9 +111,57 @@ export default function ProfileHeader({
   const [followUser, { isLoading: isFollowingLoading }] = useProfileFollowUserMutation();
   const [unfollowUser, { isLoading: isUnfollowingLoading }] = useProfileUnfollowUserMutation();
 
+  // Story viewer state
+  const [isStoryOpen, setIsStoryOpen] = useState(false);
+  const [activeStoryIndex, setActiveStoryIndex] = useState(0);
+  const [storyProgress, setStoryProgress] = useState(0);
+
   // Compute target user ID before any early returns (React rules of hooks)
   const isOwnProfile = !!profile?.isMyProfile;
   const targetUserId = isOwnProfile ? "" : String(profile?.id ?? profile?.userId ?? "");
+
+  // Fetch this profile's stories
+  const { data: otherStoriesResponse } = useGetUserStoriesQuery(targetUserId, {
+    skip: !targetUserId || isOwnProfile,
+  });
+  const { data: myStoriesResponse } = useGetMyStoriesQuery(undefined, {
+    skip: !isOwnProfile,
+  });
+
+  const userStories = isOwnProfile
+    ? (myStoriesResponse?.data?.stories ?? [])
+    : (otherStoriesResponse?.data?.stories ?? []);
+  const hasStories = userStories.length > 0;
+
+  // Auto-progress through stories
+  const progressTimer = useRef<ReturnType<typeof setInterval>>();
+  useEffect(() => {
+    if (!isStoryOpen) return;
+    setStoryProgress(0);
+    clearInterval(progressTimer.current);
+    progressTimer.current = setInterval(() => {
+      setStoryProgress((p) => {
+        if (p >= 100) {
+          clearInterval(progressTimer.current);
+          if (activeStoryIndex < userStories.length - 1) {
+            setActiveStoryIndex((i) => i + 1);
+          } else {
+            setIsStoryOpen(false);
+          }
+          return 0;
+        }
+        return p + 2;
+      });
+    }, 100);
+    return () => clearInterval(progressTimer.current);
+  }, [isStoryOpen, activeStoryIndex, userStories.length]);
+
+  const handleOpenStory = useCallback(() => {
+    if (!hasStories) return;
+    setActiveStoryIndex(0);
+    setStoryProgress(0);
+    setIsStoryOpen(true);
+  }, [hasStories]);
 
   // Fetch real follow status from API — runs when targetUserId is known
   const { data: isFollowingFromApi, isLoading: isFollowCheckLoading } =
@@ -175,16 +225,105 @@ export default function ProfileHeader({
     <section className="border-b border-ig-border px-4 py-8 sm:px-8 lg:py-10">
       <div className="mx-auto flex max-w-4xl flex-col gap-7 sm:flex-row sm:items-start sm:gap-14">
         <div className="flex justify-center sm:w-40 sm:justify-start lg:w-52">
-          <div
-            className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-ig-border bg-ig-card-bg bg-cover bg-center text-4xl font-semibold text-ig-secondary sm:h-36 sm:w-36 lg:h-40 lg:w-40"
-            style={
-              avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined
-            }
-            aria-label={`${username} avatar`}
+          {/* Avatar with story ring if user has stories */}
+          <button
+            type="button"
+            onClick={hasStories ? handleOpenStory : undefined}
+            className={hasStories ? "cursor-pointer" : "cursor-default"}
+            aria-label={hasStories ? `View ${username}'s story` : undefined}
           >
-            {!avatarUrl && initial}
-          </div>
+            <div
+              className={`relative flex items-center justify-center rounded-full ${
+                hasStories
+                  ? "p-[3px] bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600"
+                  : ""
+              }`}
+            >
+              <div className={`rounded-full ${hasStories ? "p-[2px] bg-ig-bg" : ""}`}>
+                <div
+                  className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-ig-border bg-ig-card-bg bg-cover bg-center text-4xl font-semibold text-ig-secondary sm:h-36 sm:w-36 lg:h-40 lg:w-40"
+                  style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
+                  aria-label={`${username} avatar`}
+                >
+                  {!avatarUrl && initial}
+                </div>
+              </div>
+            </div>
+          </button>
         </div>
+
+        {/* ── Inline Story Viewer Modal ── */}
+        {isStoryOpen && userStories.length > 0 && (() => {
+          const story = userStories[activeStoryIndex];
+          const mediaUrl = getFileUrl(story?.fileName, "post");
+          const isVideo = [".mp4", ".webm", ".mov", ".avi", ".mkv"].some((e) =>
+            mediaUrl.toLowerCase().includes(e)
+          );
+          return (
+            <div
+              className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+              onClick={() => setIsStoryOpen(false)}
+            >
+              <div
+                className="relative w-full max-w-sm mx-auto h-[90vh] max-h-[700px] bg-black rounded-2xl overflow-hidden shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Progress bars */}
+                <div className="absolute top-3 left-3 right-3 z-10 flex gap-1">
+                  {userStories.map((_, i) => (
+                    <div key={i} className="flex-1 h-[2px] bg-white/30 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-white rounded-full transition-none"
+                        style={{ width: i < activeStoryIndex ? "100%" : i === activeStoryIndex ? `${storyProgress}%` : "0%" }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Header */}
+                <div className="absolute top-7 left-3 right-3 z-10 flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full overflow-hidden border border-white/40">
+                    <img src={avatarUrl || getFileUrl(null, "avatar")} alt={username} className="w-full h-full object-cover" />
+                  </div>
+                  <span className="text-white text-sm font-semibold drop-shadow">{username}</span>
+                  <button
+                    onClick={() => setIsStoryOpen(false)}
+                    className="ml-auto text-white/80 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Media */}
+                <div className="w-full h-full">
+                  {isVideo ? (
+                    <video src={mediaUrl} autoPlay muted loop className="w-full h-full object-cover" />
+                  ) : (
+                    <img src={mediaUrl} alt="story" className="w-full h-full object-cover" />
+                  )}
+                </div>
+
+                {/* Prev / Next tap zones */}
+                <button
+                  className="absolute left-0 top-0 h-full w-1/3 z-10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (activeStoryIndex > 0) { setActiveStoryIndex((i) => i - 1); setStoryProgress(0); }
+                    else setIsStoryOpen(false);
+                  }}
+                />
+                <button
+                  className="absolute right-0 top-0 h-full w-1/3 z-10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (activeStoryIndex < userStories.length - 1) { setActiveStoryIndex((i) => i + 1); setStoryProgress(0); }
+                    else setIsStoryOpen(false);
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="flex min-w-0 flex-1 flex-col gap-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">

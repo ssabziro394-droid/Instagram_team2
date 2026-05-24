@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Heart, 
@@ -9,7 +10,9 @@ import {
   Send, 
   Bookmark, 
   MoreHorizontal, 
-  Smile 
+  Smile,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import { Post, useLikePostMutation, useAddCommentMutation, useAddPostFavoriteMutation } from "@/store/api/feedApi";
 import { getFileUrl } from "@/lib/file";
@@ -28,6 +31,7 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
   const [commentText, setCommentText] = useState("");
   const [showAllComments, setShowAllComments] = useState(false);
   const [isLikingLocal, setIsLikingLocal] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
 
   // Local state for optimistic updates
   const [localLike, setLocalLike] = useState(post.postLike);
@@ -116,7 +120,7 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
       {/* Header */}
       <div className="flex items-center justify-between p-3.5">
         <div className="flex items-center gap-3">
-          <div className="relative w-8 h-8 rounded-full overflow-hidden border border-ig-border bg-ig-card-bg">
+          <Link href={`/${post.userName || "anonymous"}`} className="relative w-8 h-8 rounded-full overflow-hidden border border-ig-border bg-ig-card-bg block hover:opacity-80 transition-opacity">
             <img
               src={getFileUrl(post.userImage, "avatar")}
               alt={post.userName}
@@ -125,12 +129,12 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
                 e.currentTarget.src = getFileUrl(null, "avatar");
               }}
             />
-          </div>
+          </Link>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-sm hover:underline cursor-pointer">
+              <Link href={`/${post.userName || "anonymous"}`} className="font-semibold text-sm hover:text-ig-secondary transition-colors inline-block text-ig-fg">
                 {post.userName || "anonymous"}
-              </span>
+              </Link>
               <span className="text-ig-secondary text-xs">•</span>
               <span className="text-ig-secondary text-xs">
                 {formatRelativeTime(post.datePublished)}
@@ -155,18 +159,26 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
         onClick={() => onViewDetails?.(post.postId)}
       >
         {isVideo ? (
-          <video
-            src={mediaUrl}
-            className="w-full h-full object-cover transition-transform duration-500 hover:scale-[1.02]"
-            autoPlay
-            loop
-            muted
-            playsInline
-            onError={(e) => {
-              // Fallback if video fails
-              e.currentTarget.style.display = "none";
-            }}
-          />
+          <div className="relative w-full h-full">
+            <video
+              src={mediaUrl}
+              className="w-full h-full object-cover transition-transform duration-500 hover:scale-[1.02]"
+              autoPlay
+              loop
+              muted={isMuted}
+              playsInline
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsMuted(prev => !prev); }}
+              className="absolute bottom-3 right-3 z-10 p-1.5 rounded-full bg-black/60 hover:bg-black/80 transition-colors text-white"
+              aria-label={isMuted ? "Unmute" : "Mute"}
+            >
+              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+          </div>
         ) : (
           <img
             src={mediaUrl}
@@ -238,9 +250,9 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
         {/* Caption & Content */}
         {post.content && (
           <div className="text-sm leading-relaxed mb-2 text-ig-fg">
-            <span className="font-semibold mr-2 text-ig-fg hover:underline cursor-pointer">
+            <Link href={`/${post.userName || "anonymous"}`} className="font-semibold mr-2 text-ig-fg hover:text-ig-secondary transition-colors inline-block">
               {post.userName || "anonymous"}
-            </span>
+            </Link>
             {post.content}
           </div>
         )}
@@ -269,7 +281,7 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
                     key={comment.postCommentId} 
                     className="flex gap-2.5 items-start text-xs group"
                   >
-                    <div className="relative w-5 h-5 rounded-full overflow-hidden border border-ig-border bg-ig-card-bg flex-shrink-0 mt-0.5">
+                    <Link href={`/${comment.userName.split("@")[0] || "anonymous"}`} className="relative w-5 h-5 rounded-full overflow-hidden border border-ig-border bg-ig-card-bg flex-shrink-0 mt-0.5 block hover:opacity-80 transition-opacity">
                       <img
                         src={getFileUrl(comment.userImage, "avatar")}
                         alt={comment.userName}
@@ -278,11 +290,11 @@ export default function PostCard({ post, onViewDetails }: PostCardProps) {
                           e.currentTarget.src = getFileUrl(null, "avatar");
                         }}
                       />
-                    </div>
+                    </Link>
                     <div className="flex-1 leading-normal">
-                      <span className="font-semibold mr-1.5 text-ig-fg hover:underline cursor-pointer">
+                      <Link href={`/${comment.userName.split("@")[0] || "anonymous"}`} className="font-semibold mr-1.5 text-ig-fg hover:text-ig-secondary transition-colors inline-block">
                         {comment.userName.split("@")[0]}
-                      </span>
+                      </Link>
                       <span className="text-ig-fg">{comment.comment}</span>
                       <div className="flex items-center gap-2 mt-1 text-[10px] text-ig-secondary">
                         <span>{formatRelativeTime(comment.dateCommented)}</span>

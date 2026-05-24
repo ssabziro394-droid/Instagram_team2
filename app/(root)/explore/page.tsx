@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import SearchBar from "@/components/search/SearchBar";
 import SearchResults from "@/components/search/SearchResults";
+import ExploreGrid from "@/components/explore/ExploreGrid";
 import {
   useAddSearchHistoryMutation,
   useAddUserSearchHistoryMutation,
@@ -88,6 +89,7 @@ export default function ExplorePage() {
   const [query, setQuery] = useState("");
   const [searchInputValue, setSearchInputValue] = useState("");
   const [deletingHistoryId, setDeletingHistoryId] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
 
   // ── API hooks ──────────────────────────────────────────────────────────────
 
@@ -110,7 +112,8 @@ export default function ExplorePage() {
   // ── Derived data ───────────────────────────────────────────────────────────
 
   const searchResults: SearchUser[] = useMemo(() => {
-    const users = usersQuery.data ?? [];
+    const raw = usersQuery.data;
+    const users: SearchUser[] = Array.isArray(raw) ? raw : ((raw as any)?.data ?? []);
     if (!query) return users;
     return users.filter((u) => matchesQuery(u, query));
   }, [usersQuery.data, query]);
@@ -142,7 +145,7 @@ export default function ExplorePage() {
 
   const navigateToUser = useCallback(
     (user: SearchUser) => {
-      router.push(`/profile/${getProfileSlug(user)}`);
+      router.push(`/${getProfileSlug(user)}`);
     },
     [router]
   );
@@ -250,31 +253,56 @@ export default function ExplorePage() {
     userHistoriesQuery.isLoading;
 
   return (
-    <div className="flex min-h-full flex-col bg-black text-white">
-      {/* Top bar */}
-      <div className="sticky top-0 z-10 border-b border-zinc-900 bg-black px-4 py-3 flex items-center gap-3">
-        <SearchBar
-          value={searchInputValue}
-          onDebouncedChange={handleDebouncedChange}
-          onSearchSubmit={handleSearchSubmit}
-          placeholder="Поиск"
-        />
+    <div className="flex min-h-full flex-col bg-ig-bg text-ig-fg">
+      {/* ── Sticky Top Bar ── */}
+      <div className="sticky top-0 z-20 bg-ig-bg/95 backdrop-blur-md border-b border-ig-border">
+        <div className="px-4 py-2.5 flex items-center gap-3">
+          <SearchBar
+            value={searchInputValue}
+            onDebouncedChange={handleDebouncedChange}
+            onSearchSubmit={handleSearchSubmit}
+            onFocus={() => setIsFocused(true)}
+            placeholder="🔍  Поиск"
+          />
+          {isFocused && (
+            <button
+              onClick={() => {
+                setIsFocused(false);
+                setQuery("");
+                setSearchInputValue("");
+              }}
+              className="text-sm font-semibold text-sky-500 hover:text-sky-400 transition-colors shrink-0"
+            >
+              Отмена
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Results */}
-      <div className="flex-1">
-        <SearchResults
-          query={query}
-          users={searchResults}
-          histories={combinedHistories}
-          isLoading={isLoading}
-          isError={usersQuery.isError}
-          deletingHistoryId={deletingHistoryId}
-          onSelectUser={handleUserClick}
-          onSelectHistory={handleSelectHistory}
-          onDeleteHistory={handleDeleteHistory}
-          onClearHistory={handleClearAllHistory}
-        />
+      {/* ── Content ── */}
+      <div className="flex-1 relative">
+        {/* Grid is always visible underneath */}
+        <div className="w-full pb-20 md:pb-4">
+          <ExploreGrid />
+        </div>
+
+        {/* Search overlay — slides in on top of the grid */}
+        {(isFocused || query.trim().length > 0) && (
+          <div className="absolute inset-0 z-10 bg-ig-bg animate-in fade-in duration-150">
+            <SearchResults
+              query={query}
+              users={searchResults}
+              histories={combinedHistories}
+              isLoading={isLoading}
+              isError={usersQuery.isError}
+              deletingHistoryId={deletingHistoryId}
+              onSelectUser={handleUserClick}
+              onSelectHistory={handleSelectHistory}
+              onDeleteHistory={handleDeleteHistory}
+              onClearHistory={handleClearAllHistory}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

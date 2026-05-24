@@ -24,7 +24,7 @@ export default function BottomBar() {
 
   const navItems = [
     { href: "/", icon: Home },
-    { href: "/explore", icon: Search },
+    { href: "/search", icon: Search },
     { href: "/?create=true", icon: PlusSquare },
     { href: "/reels", icon: Film },
     { href: `/${dynamicUsername}`, icon: User },

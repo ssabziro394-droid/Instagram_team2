@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useFetchReelsQuery, useLikePostMutation, useAddPostFavoriteMutation, useAddCommentMutation } from "@/store/api/reelsApi";
+import { useGetReelsQuery, useLikePostMutation, useAddPostFavoriteMutation, useAddCommentMutation } from "@/store/api/reelsApi";
 import ReelCard from "@/components/reels/ReelCard";
 import ReelSkeleton from "@/components/reels/ReelSkeleton";
 import { Reel, Comment } from "@/components/reels/types";
@@ -10,8 +10,7 @@ import { WifiOff, Film, RefreshCw, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function ReelsPage() {
-  // 1. Fetch from Swagger endpoint via RTK Query
-  const { data: reelsFromApi, isLoading, isError, error, refetch } = useFetchReelsQuery({ pageNumber: 1, pageSize: 10 });
+  const { data: reelsFromApi, isLoading, isError, error, refetch } = useGetReelsQuery({ pageNumber: 1, pageSize: 10 });
 
   // 2. Local state to manage live interactive edits (likes, saves, follows, comments) without database mutations
   const [reelsList, setReelsList] = useState<Reel[]>([]);
@@ -190,7 +189,7 @@ export default function ReelsPage() {
     );
 
     try {
-      await addComment({ postId: Number(reelId), comment: text }).unwrap();
+      await addComment({ postId: Number(reelId), commentText: text }).unwrap();
     } catch (error) {
       console.error("Failed to add comment:", error);
     }

@@ -59,11 +59,11 @@ export default function Sidebar() {
 
   const navItems = [
     { label: "Home", href: "/", icon: Home, animateClass: "group-hover:animate-home-bounce" },
-    { label: "Search", href: "/explore", icon: Search, animateClass: "group-hover:animate-search-wiggle" },
+    { label: "Search", href: "/search", icon: Search, animateClass: "group-hover:animate-search-wiggle" },
     { label: "Explore", href: "/explore", icon: Compass, animateClass: "group-hover:animate-compass-spin" },
     { label: "Reels", href: "/reels", icon: Film, animateClass: "group-hover:animate-reel-wobble" },
     { label: "Messages", href: "/messages", icon: MessageSquare, animateClass: "group-hover:animate-message-shake" },
-    { label: "Notifications", href: "#", icon: Heart, animateClass: "group-hover:animate-heartbeat" },
+    { label: "Notifications", href: "/notifications", icon: Heart, animateClass: "group-hover:animate-heartbeat" },
     { label: "Create", href: "/?create=true", icon: PlusSquare, animateClass: "group-hover:animate-create-spin" },
     { label: "Profile", href: `/${dynamicUsername}`, icon: User, animateClass: "group-hover:scale-110" },
   ];
