@@ -7,8 +7,9 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
 } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import CreatePostModalGate from "@/components/create/CreatePostModalGate";
 import EditProfileModal from "@/components/profile/EditProfileModal";
@@ -18,8 +19,9 @@ import {
   useGetMyProfileQuery,
   useGetUserProfileByIdQuery,
   useUpdateUserProfileMutation,
+  useGetPostFavoritesQuery,
 } from "@/store/api/profileApi";
-import { useGetUsersQuery } from "@/store/api/searchApi";
+import { useGetUsersQuery, useAddUserSearchHistoryMutation } from "@/store/api/searchApi";
 import { useGetProfilePostsQuery } from "@/store/api/postsApi";
 import PostDetailModal from "@/components/profile/PostDetailModal";
 import { getUsernameFromToken } from "@/lib/utils";
@@ -105,8 +107,10 @@ export default function ProfilePage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [actionError, setActionError] = useState("");
   const [selectedPostId, setSelectedPostId] = useState<string | number | null>(null);
+  const [activeTab, setActiveTab] = useState<"POSTS" | "SAVED">("POSTS");
 
   const myProfileQuery = useGetMyProfileQuery();
+  const [addUserSearchHistory] = useAddUserSearchHistoryMutation();
 
   const isOwnProfile = useMemo(() => {
     if (!usernameParam) return true;
@@ -127,7 +131,10 @@ export default function ProfilePage() {
     return usernameParam.toLowerCase() === ownUsername.toLowerCase();
   }, [usernameParam, myProfileQuery.data, myProfileQuery.isLoading, myProfileQuery.isUninitialized]);
 
-  const shouldSearch = !isOwnProfile && !!usernameParam;
+  const searchParamsHook = useSearchParams();
+  const queryUserId = searchParamsHook?.get("id") || searchParamsHook?.get("userId") || "";
+
+  const shouldSearch = !isOwnProfile && !!usernameParam && !queryUserId;
   const searchUsersQuery = useGetUsersQuery(
     usernameParam,
     { skip: !shouldSearch }
@@ -135,27 +142,32 @@ export default function ProfilePage() {
 
   const targetUser = useMemo(() => {
     if (!searchUsersQuery.data || !usernameParam) return null;
-    return searchUsersQuery.data.find(
+    // Handle both legacy array response and new paginated object response
+    const usersArray: any[] = Array.isArray(searchUsersQuery.data)
+      ? searchUsersQuery.data
+      : (searchUsersQuery.data as any)?.data ?? [];
+    return usersArray.find(
       (u) =>
         (u.username ?? u.userName ?? "").toLowerCase() === usernameParam.toLowerCase()
-    ) ?? searchUsersQuery.data[0];
+    ) ?? usersArray[0];
   }, [searchUsersQuery.data, usernameParam]);
 
-  const targetUserId = targetUser?.id ?? targetUser?.userId;
+  const targetUserId = queryUserId || targetUser?.id || targetUser?.userId || "";
 
   const targetProfileQuery = useGetUserProfileByIdQuery(
-    targetUserId ?? "",
+    targetUserId,
     { skip: !targetUserId || isOwnProfile }
   );
 
   const activeProfile = isOwnProfile ? myProfileQuery.data : targetProfileQuery.data;
+  
   const isProfileLoading = isOwnProfile
-    ? myProfileQuery.isLoading || myProfileQuery.isFetching
-    : myProfileQuery.isLoading || myProfileQuery.isFetching || searchUsersQuery.isLoading || targetProfileQuery.isLoading || targetProfileQuery.isFetching;
+    ? (myProfileQuery.isLoading || !activeProfile)
+    : (searchUsersQuery.isLoading || (!targetUserId && !searchUsersQuery.isError && !searchUsersQuery.isSuccess) || (targetProfileQuery.isLoading && !activeProfile));
 
   const isProfileError = isOwnProfile
-    ? myProfileQuery.isError
-    : myProfileQuery.isError || (searchUsersQuery.isSuccess && !targetUser) || targetProfileQuery.isError;
+    ? !!myProfileQuery.isError
+    : !!(searchUsersQuery.isError || targetProfileQuery.isError || (searchUsersQuery.isSuccess && !targetUser && !searchUsersQuery.isLoading));
 
   const currentUserId = getProfileUserId(activeProfile);
   const [updateUserProfile, updateState] = useUpdateUserProfileMutation();
@@ -176,18 +188,85 @@ export default function ProfilePage() {
   const isPostsError = isPostsErrorQuery;
   const hasLoadedPosts = !isPostsLoading && postsData !== undefined;
 
+  const {
+    data: savedData,
+    isLoading: isSavedLoading,
+    isError: isSavedErrorQuery,
+    error: savedErrorQuery,
+    refetch: refetchSaved,
+  } = useGetPostFavoritesQuery(undefined, { skip: !isOwnProfile || activeTab !== "SAVED" });
+
+  const savedPosts = savedData ?? [];
+  const savedError = savedErrorQuery ? "Не удалось загрузить сохраненные публикации." : null;
+
+  const displayPosts = activeTab === "POSTS" ? posts : savedPosts;
+  const isDisplayLoading = activeTab === "POSTS" 
+    ? (isPostsLoading || (currentUserId !== null && !hasLoadedPosts))
+    : isSavedLoading;
+  const isDisplayError = activeTab === "POSTS" ? isPostsErrorQuery : isSavedErrorQuery;
+  const displayErrorMessage = activeTab === "POSTS" ? postsError : savedError;
+
   const activePost = useMemo(() => {
     if (selectedPostId === null) return null;
-    return posts.find(
+    return displayPosts.find(
       (p) => String(p.postId) === String(selectedPostId) || String(p.id) === String(selectedPostId)
     );
-  }, [posts, selectedPostId]);
+  }, [displayPosts, selectedPostId]);
 
   useEffect(() => {
     if (activeProfile) {
       console.log("profile:", activeProfile);
     }
   }, [activeProfile]);
+
+  const lastSavedUserIdRef = useRef<string | null>(null);
+  const profileId = activeProfile?.id ?? activeProfile?.userId;
+
+  useEffect(() => {
+    if (!isOwnProfile && activeProfile && profileId && lastSavedUserIdRef.current !== String(profileId)) {
+      lastSavedUserIdRef.current = String(profileId);
+      const saveUserToHistory = async () => {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const profile = activeProfile as any;
+          const id = profile.id ?? profile.userId ?? "";
+          const username = profile.username ?? profile.userName ?? "";
+          const fullname =
+            profile.fullName ??
+            [profile.firstName, profile.lastName].filter(Boolean).join(" ") ??
+            "";
+          const avatar =
+            profile.avatar ??
+            profile.avatarUrl ??
+            profile.image ??
+            null;
+          const followers =
+            profile.followersCount ??
+            profile.subscribersCount ??
+            0;
+          const isVerified =
+            profile.isVerified ??
+            profile.verified ??
+            false;
+
+          await addUserSearchHistory({
+            type: "user",
+            user: {
+              id: String(id),
+              username: String(username),
+              fullname: String(fullname),
+              avatar: avatar ? String(avatar) : null,
+              followers: Number(followers),
+              isVerified: Boolean(isVerified),
+            },
+          }).unwrap();
+        } catch (err) {
+          console.error("Failed to auto-save visited profile to search history:", err);
+        }
+      };
+      void saveUserToHistory();
+    }
+  }, [isOwnProfile, activeProfile, profileId, addUserSearchHistory]);
 
   const profileWithPostCount = useMemo(() => {
     if (!activeProfile) {
@@ -235,7 +314,10 @@ export default function ProfilePage() {
     if (currentUserId) {
       void refetchPosts();
     }
-  }, [refetchPosts, myProfileQuery, targetProfileQuery, isOwnProfile, targetUserId, currentUserId]);
+    if (isOwnProfile) {
+      void refetchSaved();
+    }
+  }, [refetchPosts, refetchSaved, myProfileQuery, targetProfileQuery, isOwnProfile, targetUserId, currentUserId]);
 
   const handleSaveProfile = useCallback(
     async (values: UpdateUserProfileRequest) => {
@@ -251,6 +333,18 @@ export default function ProfilePage() {
     },
     [myProfileQuery, updateUserProfile],
   );
+
+  if (isProfileLoading) {
+    return (
+      <div className="min-h-full bg-ig-bg text-ig-fg">
+        <ProfileHeader
+          profile={null}
+          isLoading={true}
+          onEdit={() => {}}
+        />
+      </div>
+    );
+  }
 
   if (isProfileError) {
     return (
@@ -294,15 +388,40 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {isOwnProfile && (
+        <div className="flex justify-center border-t border-ig-border">
+          <div className="flex gap-12">
+            <button
+              onClick={() => setActiveTab("POSTS")}
+              className={`flex items-center gap-2 border-t text-xs font-semibold tracking-widest uppercase py-4 transition-colors ${
+                activeTab === "POSTS"
+                  ? "border-ig-fg text-ig-fg"
+                  : "border-transparent text-ig-secondary"
+              }`}
+            >
+              <svg aria-label="Публикации" className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" clipRule="evenodd" d="M12 21a9 9 0 100-18 9 9 0 000 18zm5.5-9v-4.5H13v4.5h4.5zm-5.5 0v-4.5H7.5v4.5H12zm5.5 1H13v4.5h4.5v-4.5zm-5.5 0H7.5v4.5H12v-4.5z" /></svg>
+              Публикации
+            </button>
+            <button
+              onClick={() => setActiveTab("SAVED")}
+              className={`flex items-center gap-2 border-t text-xs font-semibold tracking-widest uppercase py-4 transition-colors ${
+                activeTab === "SAVED"
+                  ? "border-ig-fg text-ig-fg"
+                  : "border-transparent text-ig-secondary"
+              }`}
+            >
+              <svg aria-label="Сохраненное" className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24"><polygon fill="none" points="20 21 12 13.44 4 21 4 3 20 3 20 21" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" /></svg>
+              Сохраненное
+            </button>
+          </div>
+        </div>
+      )}
+
       <ProfileGrid
-        posts={posts}
-        isLoading={
-          isProfileLoading ||
-          isPostsLoading ||
-          (currentUserId !== null && !hasLoadedPosts)
-        }
-        isError={isPostsError}
-        errorMessage={postsError ?? "Не удалось загрузить публикации."}
+        posts={displayPosts}
+        isLoading={isProfileLoading || isDisplayLoading}
+        isError={isDisplayError}
+        errorMessage={displayErrorMessage ?? "Не удалось загрузить публикации."}
         onCreatePost={handleOpenCreatePost}
         onPostClick={(post) => {
           setSelectedPostId(post.postId ?? post.id ?? null);

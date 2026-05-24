@@ -254,13 +254,17 @@ export default function ReelCard({
         <div className="absolute left-4 right-16 bottom-6 z-30 text-ig-fg flex flex-col gap-3 pointer-events-none">
           {/* Creator Profile row */}
           <div className="flex items-center gap-3 pointer-events-auto">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={reel.creator.avatarUrl || undefined}
-              alt={reel.creator.username}
-              className="w-9 h-9 rounded-full object-cover border-2 border-white/80 shadow-md"
-            />
-            <span className="font-semibold text-sm drop-shadow-md">@{reel.creator.username}</span>
+            <Link href={`/${reel.creator.username}`} className="w-9 h-9 rounded-full overflow-hidden block border-2 border-white/80 shadow-md hover:opacity-80 transition-opacity">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={reel.creator.avatarUrl || undefined}
+                alt={reel.creator.username}
+                className="w-full h-full object-cover"
+              />
+            </Link>
+            <Link href={`/${reel.creator.username}`} className="font-semibold text-sm drop-shadow-md hover:text-ig-secondary transition-colors inline-block text-ig-fg">
+              @{reel.creator.username}
+            </Link>
             <button
               onClick={(e) => {
                 e.stopPropagation();

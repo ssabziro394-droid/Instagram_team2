@@ -46,6 +46,23 @@ export type SearchHistory = {
   searchedUser?: SearchUser;
 };
 
+export type HistoryUser = {
+  id: string;
+  username: string;
+  fullname: string;
+  avatar: string | null;
+  followers: number;
+  isVerified: boolean;
+};
+
+export type HistoryItem = {
+  id: string;
+  type: "user" | "query";
+  query?: string;
+  user?: HistoryUser;
+  createdAt: number;
+};
+
 export type SearchUsersQuery = {
   search?: string;
   pageNumber?: number;
@@ -68,3 +85,4 @@ export type DeleteSearchHistoryRequest = {
   id?: ProfileId;
   searchHistoryId?: ProfileId;
 };
+

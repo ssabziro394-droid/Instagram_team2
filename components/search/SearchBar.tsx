@@ -60,13 +60,13 @@ export default function SearchBar({
         }}
         placeholder={placeholder}
         autoComplete="off"
-        className="h-10 w-full rounded-full border-none bg-zinc-800 pl-9 pr-9 text-sm text-white outline-none placeholder:text-zinc-400 focus:ring-2 focus:ring-zinc-600 transition"
+        className="h-10 w-full rounded-full border border-ig-border bg-ig-sidebar-hover pl-9 pr-9 text-sm text-ig-fg outline-none placeholder:text-ig-secondary focus:ring-2 focus:ring-ig-primary transition"
       />
       {internalValue && (
         <button
           type="button"
           onClick={handleClear}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-500 text-black hover:bg-zinc-400 transition"
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-ig-secondary text-ig-bg hover:bg-ig-fg transition"
           aria-label="Очистить поиск"
         >
           <X className="h-3 w-3" />

@@ -73,7 +73,7 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
       {/* Close button outside modal */}
       <button 
         onClick={onClose}
-        className="absolute top-4 right-4 text-zinc-400 hover:text-white p-2"
+        className="absolute top-4 right-4 text-ig-secondary hover:text-white p-2"
       >
         <X className="h-6 w-6" />
       </button>
@@ -83,18 +83,18 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="relative bg-zinc-950 border border-zinc-900 w-full max-w-4xl h-[85vh] max-h-[700px] rounded-xl overflow-hidden flex flex-col md:flex-row shadow-2xl"
+        className="relative bg-ig-bg border border-ig-border w-full max-w-4xl h-[85vh] max-h-[700px] rounded-xl overflow-hidden flex flex-col md:flex-row shadow-2xl"
       >
         {isLoading ? (
-          <div className="flex-1 h-full flex items-center justify-center text-zinc-500">
+          <div className="flex-1 h-full flex items-center justify-center text-ig-secondary">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-sky-500"></div>
           </div>
         ) : error || !post ? (
-          <div className="flex-1 h-full flex flex-col items-center justify-center p-6 text-center text-zinc-500">
+          <div className="flex-1 h-full flex flex-col items-center justify-center p-6 text-center text-ig-secondary">
             <span className="text-red-500 font-semibold mb-2">Error loading post details</span>
             <button 
               onClick={onClose}
-              className="mt-4 px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-300 text-xs font-semibold"
+              className="mt-4 px-4 py-2 bg-ig-card-bg border border-ig-border rounded-lg text-ig-fg text-xs font-semibold"
             >
               Close
             </button>
@@ -102,7 +102,7 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
         ) : (
           <>
             {/* Left side: Image */}
-            <div className="flex-1 bg-black flex items-center justify-center border-r border-zinc-900">
+            <div className="flex-1 bg-ig-bg flex items-center justify-center border-r border-ig-border">
               <img
                 src={getFileUrl(post.images?.[0], "post")}
                 alt={post.title || "Post Image"}
@@ -114,10 +114,10 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
             </div>
 
             {/* Right side: Comments & Actions */}
-            <div className="w-full md:w-[380px] h-full flex flex-col bg-zinc-950">
+            <div className="w-full md:w-[380px] h-full flex flex-col bg-ig-bg">
               {/* Header */}
-              <div className="flex items-center gap-3 p-4 border-b border-zinc-900">
-                <div className="relative w-8 h-8 rounded-full overflow-hidden border border-zinc-850 bg-zinc-900">
+              <div className="flex items-center gap-3 p-4 border-b border-ig-border">
+                <div className="relative w-8 h-8 rounded-full overflow-hidden border border-zinc-850 bg-ig-card-bg">
                   <img
                     src={getFileUrl(post.userImage, "avatar")}
                     alt={post.userName}
@@ -128,21 +128,21 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
                   />
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-semibold text-xs text-zinc-100 hover:underline cursor-pointer">
+                  <span className="font-semibold text-xs text-ig-fg hover:underline cursor-pointer">
                     {post.userName || "anonymous"}
                   </span>
-                  <span className="text-[10px] text-zinc-500">
+                  <span className="text-[10px] text-ig-secondary">
                     {formatRelativeTime(post.datePublished)}
                   </span>
                 </div>
               </div>
 
               {/* Caption & Comments List */}
-              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 border-b border-zinc-900">
+              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 border-b border-ig-border">
                 {/* Caption */}
                 {post.content && (
                   <div className="flex gap-2.5 items-start text-xs border-b border-zinc-900/50 pb-3">
-                    <div className="relative w-6 h-6 rounded-full overflow-hidden border border-zinc-850 bg-zinc-900 flex-shrink-0">
+                    <div className="relative w-6 h-6 rounded-full overflow-hidden border border-zinc-850 bg-ig-card-bg flex-shrink-0">
                       <img
                         src={getFileUrl(post.userImage, "avatar")}
                         alt={post.userName}
@@ -153,10 +153,10 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
                       />
                     </div>
                     <div className="flex-1 leading-normal">
-                      <span className="font-semibold mr-1.5 text-zinc-100 hover:underline">
+                      <span className="font-semibold mr-1.5 text-ig-fg hover:underline">
                         {post.userName}
                       </span>
-                      <span className="text-zinc-200">{post.content}</span>
+                      <span className="text-ig-fg">{post.content}</span>
                     </div>
                   </div>
                 )}
@@ -165,7 +165,7 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
                 {post.comments && post.comments.length > 0 ? (
                   post.comments.map((comment) => (
                     <div key={comment.postCommentId} className="flex gap-2.5 items-start text-xs">
-                      <div className="relative w-6 h-6 rounded-full overflow-hidden border border-zinc-850 bg-zinc-900 flex-shrink-0">
+                      <div className="relative w-6 h-6 rounded-full overflow-hidden border border-zinc-850 bg-ig-card-bg flex-shrink-0">
                         <img
                           src={getFileUrl(comment.userImage, "avatar")}
                           alt={comment.userName}
@@ -177,19 +177,19 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
                       </div>
                       <div className="flex-1 leading-normal">
                         <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className="font-semibold text-zinc-100 hover:underline">
+                          <span className="font-semibold text-ig-fg hover:underline">
                             {comment.userName.split("@")[0]}
                           </span>
-                          <span className="text-zinc-500 text-[10px]">
+                          <span className="text-ig-secondary text-[10px]">
                             {formatRelativeTime(comment.dateCommented)}
                           </span>
                         </div>
-                        <p className="text-zinc-300">{comment.comment}</p>
+                        <p className="text-ig-fg">{comment.comment}</p>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center text-zinc-500 text-xs py-8">
+                  <div className="flex-1 flex flex-col items-center justify-center text-ig-secondary text-xs py-8">
                     <span>No comments yet.</span>
                     <span>Start the conversation.</span>
                   </div>
@@ -197,33 +197,33 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
               </div>
 
               {/* Actions & Likes */}
-              <div className="p-4 border-b border-zinc-900">
+              <div className="p-4 border-b border-ig-border">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-4">
                     <button 
                       onClick={handleLike}
                       className={cn(
                         "transition-colors p-1 -m-1",
-                        localLike ? "text-red-500" : "text-zinc-200 hover:text-zinc-400"
+                        localLike ? "text-red-500" : "text-ig-fg hover:text-zinc-400"
                       )}
                     >
                       <Heart className={cn("h-6 w-6", localLike && "fill-red-500")} />
                     </button>
-                    <button className="text-zinc-200 hover:text-zinc-400 transition-colors p-1 -m-1">
+                    <button className="text-ig-fg hover:text-zinc-400 transition-colors p-1 -m-1">
                       <MessageCircle className="h-6 w-6" />
                     </button>
-                    <button className="text-zinc-200 hover:text-zinc-400 transition-colors p-1 -m-1">
+                    <button className="text-ig-fg hover:text-zinc-400 transition-colors p-1 -m-1">
                       <Send className="h-6 w-6" />
                     </button>
                   </div>
-                  <button className="text-zinc-200 hover:text-zinc-400 transition-colors p-1 -m-1">
+                  <button className="text-ig-fg hover:text-zinc-400 transition-colors p-1 -m-1">
                     <Bookmark className="h-6 w-6" />
                   </button>
                 </div>
-                <div className="font-semibold text-xs text-zinc-200 mb-1">
+                <div className="font-semibold text-xs text-ig-fg mb-1">
                   {localLikeCount} likes
                 </div>
-                <div className="text-[10px] text-zinc-500 uppercase">
+                <div className="text-[10px] text-ig-secondary uppercase">
                   {new Date(post.datePublished).toLocaleDateString()}
                 </div>
               </div>
@@ -231,9 +231,9 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
               {/* Comment Input */}
               <form 
                 onSubmit={handleAddComment}
-                className="p-3 bg-zinc-950 flex items-center gap-2"
+                className="p-3 bg-ig-bg flex items-center gap-2"
               >
-                <button type="button" className="text-zinc-400 hover:text-white p-1">
+                <button type="button" className="text-ig-secondary hover:text-white p-1">
                   <Smile className="h-5 w-5" />
                 </button>
                 <input
@@ -241,7 +241,7 @@ export default function PostDetailModal({ postId, onClose }: PostDetailModalProp
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder="Add a comment..."
-                  className="flex-1 bg-transparent text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none"
+                  className="flex-1 bg-transparent text-xs text-ig-fg placeholder-zinc-500 focus:outline-none"
                 />
                 <button
                   type="submit"

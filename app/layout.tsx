@@ -30,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body className={`${geistSans.variable} ${geistMono.variable} ${grandHotel.variable} antialiased bg-ig-bg text-ig-fg transition-colors duration-300`}>
         <Providers>{children}</Providers>
       </body>

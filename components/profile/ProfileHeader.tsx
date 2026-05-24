@@ -1,16 +1,20 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { logout } from "@/store/slices/authSlice";
-import { Archive, Settings } from "lucide-react";
+import { Archive, Settings, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { UserProfile } from "@/types/profile";
 import {
   useProfileFollowUserMutation,
   useProfileUnfollowUserMutation,
   useGetIsFollowUserProfileByIdQuery,
+  useProfileGetSubscribersQuery,
+  useProfileGetSubscriptionsQuery,
 } from "@/store/api/profileApi";
-import { tr } from "zod/locales";
+import { useGetUserStoriesQuery, useGetMyStoriesQuery } from "@/store/api/feedApi";
+import { getFileUrl } from "@/lib/file";
 
 type ProfileHeaderProps = {
   profile: UserProfile | null;
@@ -18,19 +22,20 @@ type ProfileHeaderProps = {
   onEdit: () => void;
 };
 
-function getDisplayName(profile: UserProfile) {
+function getDisplayName(profile: UserProfile | null | undefined) {
+  if (!profile) return "";
   return (
     profile.fullName ||
     [profile.firstName, profile.lastName].filter(Boolean).join(" ")
   );
 }
 
-function getUsername(profile: UserProfile) {
-  return profile.username || profile.userName || "Профиль";
+function getUsername(profile: UserProfile | null | undefined) {
+  return profile?.username || profile?.userName || "Профиль";
 }
 
-function getBio(profile: UserProfile) {
-  return profile.bio || profile.about || "";
+function getBio(profile: UserProfile | null | undefined) {
+  return profile?.bio || profile?.about || "";
 }
 
 function normalizeAvatarUrl(value?: string) {
@@ -50,7 +55,8 @@ function normalizeAvatarUrl(value?: string) {
   return `https://instagram-api.softclub.tj/images/${cleanValue}`;
 }
 
-function getAvatarUrl(profile: UserProfile) {
+function getAvatarUrl(profile: UserProfile | null | undefined) {
+  if (!profile) return "";
   const avatar =
     profile.avatar ||
     profile.image ||
@@ -60,16 +66,16 @@ function getAvatarUrl(profile: UserProfile) {
   return normalizeAvatarUrl(avatar);
 }
 
-function getPostsCount(profile: UserProfile) {
-  return profile.postsCount ?? profile.postCount ?? 0;
+function getPostsCount(profile: UserProfile | null | undefined) {
+  return profile?.postsCount ?? profile?.postCount ?? 0;
 }
 
-function getFollowersCount(profile: UserProfile) {
-  return profile.followersCount ?? profile.subscribersCount ?? 0;
+function getFollowersCount(profile: UserProfile | null | undefined) {
+  return profile?.followersCount ?? profile?.subscribersCount ?? 0;
 }
 
-function getFollowingCount(profile: UserProfile) {
-  return profile.followingCount ?? profile.subscriptionsCount ?? 0;
+function getFollowingCount(profile: UserProfile | null | undefined) {
+  return profile?.followingCount ?? profile?.subscriptionsCount ?? 0;
 }
 
 function formatCount(count: number) {
@@ -107,18 +113,79 @@ export default function ProfileHeader({
 }: ProfileHeaderProps) {
   const [showSettings, setShowSettings] = useState(false);
   const dispatch = useDispatch();
-  const [followUser, { isLoading: isFollowingLoading }] =
-    useProfileFollowUserMutation();
-  const [unfollowUser, { isLoading: isUnfollowingLoading }] =
-    useProfileUnfollowUserMutation();
+  const router = useRouter();
+  const [showUsersModal, setShowUsersModal] = useState<{
+    type: "subscribers" | "subscriptions";
+    title: string;
+  } | null>(null);
 
-  const profModal = useRef<null | any>(null);
+  const profileUserId = String(profile?.id ?? profile?.userId ?? "");
+
+  const { data: subscribersList, isLoading: isSubscribersLoading } = useProfileGetSubscribersQuery(
+    profileUserId,
+    { skip: showUsersModal?.type !== "subscribers" || !profileUserId }
+  );
+
+  const { data: subscriptionsList, isLoading: isSubscriptionsLoading } = useProfileGetSubscriptionsQuery(
+    profileUserId,
+    { skip: showUsersModal?.type !== "subscriptions" || !profileUserId }
+  );
+  const [followUser, { isLoading: isFollowingLoading }] = useProfileFollowUserMutation();
+  const [unfollowUser, { isLoading: isUnfollowingLoading }] = useProfileUnfollowUserMutation();
+
+  // Story viewer state
+  const [isStoryOpen, setIsStoryOpen] = useState(false);
+  const [activeStoryIndex, setActiveStoryIndex] = useState(0);
+  const [storyProgress, setStoryProgress] = useState(0);
 
   // Compute target user ID before any early returns (React rules of hooks)
   const isOwnProfile = !!profile?.isMyProfile;
   const targetUserId = isOwnProfile
     ? ""
     : String(profile?.id ?? profile?.userId ?? "");
+
+  // Fetch this profile's stories
+  const { data: otherStoriesResponse } = useGetUserStoriesQuery(targetUserId, {
+    skip: !targetUserId || isOwnProfile,
+  });
+  const { data: myStoriesResponse } = useGetMyStoriesQuery(undefined, {
+    skip: !isOwnProfile,
+  });
+
+  const userStories = isOwnProfile
+    ? (myStoriesResponse?.data?.stories ?? [])
+    : (otherStoriesResponse?.data?.stories ?? []);
+  const hasStories = userStories.length > 0;
+
+  // Auto-progress through stories
+  const progressTimer = useRef<ReturnType<typeof setInterval>>();
+  useEffect(() => {
+    if (!isStoryOpen) return;
+    setStoryProgress(0);
+    clearInterval(progressTimer.current);
+    progressTimer.current = setInterval(() => {
+      setStoryProgress((p) => {
+        if (p >= 100) {
+          clearInterval(progressTimer.current);
+          if (activeStoryIndex < userStories.length - 1) {
+            setActiveStoryIndex((i) => i + 1);
+          } else {
+            setIsStoryOpen(false);
+          }
+          return 0;
+        }
+        return p + 2;
+      });
+    }, 100);
+    return () => clearInterval(progressTimer.current);
+  }, [isStoryOpen, activeStoryIndex, userStories.length]);
+
+  const handleOpenStory = useCallback(() => {
+    if (!hasStories) return;
+    setActiveStoryIndex(0);
+    setStoryProgress(0);
+    setIsStoryOpen(true);
+  }, [hasStories]);
 
   // Fetch real follow status from API — runs when targetUserId is known
   const { data: isFollowingFromApi, isLoading: isFollowCheckLoading } =
@@ -137,6 +204,27 @@ export default function ProfileHeader({
       ? localIsFollowing
       : (isFollowingFromApi ?? profile?.isFollowing ?? false);
 
+  const baseFollowersCount = getFollowersCount(profile);
+  
+  // Calculate optimistic followers count offset
+  let followersOffset = 0;
+  if (localIsFollowing !== undefined) {
+    const originalFollowing = isFollowingFromApi ?? profile?.isFollowing ?? false;
+    if (localIsFollowing && !originalFollowing) {
+      followersOffset = 1;
+    } else if (!localIsFollowing && originalFollowing) {
+      followersOffset = -1;
+    }
+  }
+  const followersCount = Math.max(0, baseFollowersCount + followersOffset);
+
+  useEffect(() => {
+    if (localIsFollowing !== undefined && isFollowingFromApi === localIsFollowing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLocalIsFollowing(undefined);
+    }
+  }, [isFollowingFromApi, localIsFollowing]);
+
   const handleLogout = () => {
     dispatch(logout());
     setShowSettings(false);
@@ -153,7 +241,7 @@ export default function ProfileHeader({
   const handleFollow = async () => {
     const userId = profile.id ?? profile.userId;
     if (!userId) return;
-    if (isFollowCheckLoading) return; // Wait for API check
+    if (isFollowingLoading || isUnfollowingLoading || isFollowCheckLoading) return;
 
     const currentlyFollowing = isFollowing;
 
@@ -166,8 +254,6 @@ export default function ProfileHeader({
       } else {
         await followUser({ followingUserId: userId }).unwrap();
       }
-      // After success — reset to let API re-fetch give the truth
-      setLocalIsFollowing(undefined);
     } catch (error) {
       // Revert on error
       setLocalIsFollowing(currentlyFollowing);
@@ -185,16 +271,105 @@ export default function ProfileHeader({
     <section className="border-b border-ig-border px-4 py-8 sm:px-8 lg:py-10">
       <div className="mx-auto flex max-w-4xl flex-col gap-7 sm:flex-row sm:items-start sm:gap-14">
         <div className="flex justify-center sm:w-40 sm:justify-start lg:w-52">
-          <div
-            className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-ig-border bg-ig-card-bg bg-cover bg-center text-4xl font-semibold text-ig-secondary sm:h-36 sm:w-36 lg:h-40 lg:w-40"
-            style={
-              avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined
-            }
-            aria-label={`${username} avatar`}
+          {/* Avatar with story ring if user has stories */}
+          <button
+            type="button"
+            onClick={hasStories ? handleOpenStory : undefined}
+            className={hasStories ? "cursor-pointer" : "cursor-default"}
+            aria-label={hasStories ? `View ${username}'s story` : undefined}
           >
-            {!avatarUrl && initial}
-          </div>
+            <div
+              className={`relative flex items-center justify-center rounded-full ${
+                hasStories
+                  ? "p-[3px] bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600"
+                  : ""
+              }`}
+            >
+              <div className={`rounded-full ${hasStories ? "p-[2px] bg-ig-bg" : ""}`}>
+                <div
+                  className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-ig-border bg-ig-card-bg bg-cover bg-center text-4xl font-semibold text-ig-secondary sm:h-36 sm:w-36 lg:h-40 lg:w-40"
+                  style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
+                  aria-label={`${username} avatar`}
+                >
+                  {!avatarUrl && initial}
+                </div>
+              </div>
+            </div>
+          </button>
         </div>
+
+        {/* ── Inline Story Viewer Modal ── */}
+        {isStoryOpen && userStories.length > 0 && (() => {
+          const story = userStories[activeStoryIndex];
+          const mediaUrl = getFileUrl(story?.fileName, "post");
+          const isVideo = [".mp4", ".webm", ".mov", ".avi", ".mkv"].some((e) =>
+            mediaUrl.toLowerCase().includes(e)
+          );
+          return (
+            <div
+              className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+              onClick={() => setIsStoryOpen(false)}
+            >
+              <div
+                className="relative w-full max-w-sm mx-auto h-[90vh] max-h-[700px] bg-black rounded-2xl overflow-hidden shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Progress bars */}
+                <div className="absolute top-3 left-3 right-3 z-10 flex gap-1">
+                  {userStories.map((_, i) => (
+                    <div key={i} className="flex-1 h-[2px] bg-white/30 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-white rounded-full transition-none"
+                        style={{ width: i < activeStoryIndex ? "100%" : i === activeStoryIndex ? `${storyProgress}%` : "0%" }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Header */}
+                <div className="absolute top-7 left-3 right-3 z-10 flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full overflow-hidden border border-white/40">
+                    <img src={avatarUrl || getFileUrl(null, "avatar")} alt={username} className="w-full h-full object-cover" />
+                  </div>
+                  <span className="text-white text-sm font-semibold drop-shadow">{username}</span>
+                  <button
+                    onClick={() => setIsStoryOpen(false)}
+                    className="ml-auto text-white/80 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Media */}
+                <div className="w-full h-full">
+                  {isVideo ? (
+                    <video src={mediaUrl} autoPlay muted loop className="w-full h-full object-cover" />
+                  ) : (
+                    <img src={mediaUrl} alt="story" className="w-full h-full object-cover" />
+                  )}
+                </div>
+
+                {/* Prev / Next tap zones */}
+                <button
+                  className="absolute left-0 top-0 h-full w-1/3 z-10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (activeStoryIndex > 0) { setActiveStoryIndex((i) => i - 1); setStoryProgress(0); }
+                    else setIsStoryOpen(false);
+                  }}
+                />
+                <button
+                  className="absolute right-0 top-0 h-full w-1/3 z-10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (activeStoryIndex < userStories.length - 1) { setActiveStoryIndex((i) => i + 1); setStoryProgress(0); }
+                    else setIsStoryOpen(false);
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="flex min-w-0 flex-1 flex-col gap-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
@@ -259,18 +434,28 @@ export default function ProfileHeader({
               </strong>{" "}
               <span className="text-ig-fg">публикаций</span>
             </span>
-            <span>
+            <button
+              type="button"
+              onClick={() => setShowUsersModal({ type: "subscribers", title: "Подписчики" })}
+              className="hover:opacity-75 transition cursor-pointer text-center sm:text-left"
+              style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "inherit" }}
+            >
               <strong className="font-semibold text-ig-fg">
-                {formatCount(getFollowersCount(profile))}
+                {formatCount(followersCount)}
               </strong>{" "}
               <span className="text-ig-fg">подписчиков</span>
-            </span>
-            <span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowUsersModal({ type: "subscriptions", title: "Подписки" })}
+              className="hover:opacity-75 transition cursor-pointer text-center sm:text-left"
+              style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "inherit" }}
+            >
               <strong className="font-semibold text-ig-fg">
                 {formatCount(getFollowingCount(profile))}
               </strong>{" "}
               <span className="text-ig-fg">подписок</span>
-            </span>
+            </button>
           </div>
 
           <div className="text-sm leading-5">
@@ -362,6 +547,124 @@ export default function ProfileHeader({
             >
               Отмена
             </button>
+          </div>
+        </div>
+      )}
+      {/* Subscribers / Subscriptions Modal */}
+      {showUsersModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 text-white shadow-2xl">
+            {/* Header */}
+            <div className="relative flex items-center justify-center border-b border-zinc-900 py-3.5">
+              <h2 className="text-base font-semibold">{showUsersModal.title}</h2>
+              <button
+                type="button"
+                onClick={() => setShowUsersModal(null)}
+                className="absolute right-4 text-zinc-400 hover:text-white transition animate-none cursor-pointer"
+                aria-label="Закрыть"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Content List */}
+            <div className="max-h-96 min-h-[200px] overflow-y-auto p-4 flex flex-col gap-4">
+              {showUsersModal.type === "subscribers" ? (
+                isSubscribersLoading ? (
+                  <div className="flex flex-1 items-center justify-center py-10">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-500 border-t-white" />
+                  </div>
+                ) : !subscribersList || subscribersList.length === 0 ? (
+                  <div className="flex flex-1 items-center justify-center py-10 text-zinc-400 text-sm">
+                    Нет подписчиков
+                  </div>
+                ) : (
+                  subscribersList.map((u, index) => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const userInfo = (u as unknown as Record<string, any>).userShortInfo ?? u;
+                    const uUsername = userInfo.username ?? userInfo.userName ?? "Профиль";
+                    const uDisplayName = userInfo.fullName ?? userInfo.fullname ?? [userInfo.firstName, userInfo.lastName].filter(Boolean).join(" ") ?? "";
+                    const uAvatar = normalizeAvatarUrl(userInfo.userPhoto ?? userInfo.avatar ?? userInfo.image ?? userInfo.avatarUrl ?? userInfo.imageUrl);
+                    const uInitial = uUsername.charAt(0).toUpperCase();
+                    const uId = userInfo.userId ?? userInfo.id ?? "";
+
+                    return (
+                      <div
+                        key={String(uId || index)}
+                        className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition"
+                        onClick={() => {
+                          setShowUsersModal(null);
+                          router.push(`/${encodeURIComponent(uUsername)}?id=${encodeURIComponent(String(uId))}`);
+                        }}
+                      >
+                        <div
+                          className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-ig-border bg-ig-card-bg bg-cover bg-center text-lg font-semibold text-ig-secondary"
+                          style={uAvatar ? { backgroundImage: `url(${uAvatar})` } : undefined}
+                        >
+                          {!uAvatar && uInitial}
+                        </div>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-sm font-semibold text-ig-fg truncate hover:underline">
+                            {uUsername}
+                          </span>
+                          {uDisplayName && (
+                            <span className="text-xs text-ig-secondary truncate">
+                              {uDisplayName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )
+              ) : isSubscriptionsLoading ? (
+                <div className="flex flex-1 items-center justify-center py-10">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-500 border-t-white" />
+                </div>
+              ) : !subscriptionsList || subscriptionsList.length === 0 ? (
+                <div className="flex flex-1 items-center justify-center py-10 text-zinc-400 text-sm">
+                  Нет подписок
+                </div>
+              ) : (
+                subscriptionsList.map((u, index) => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const userInfo = (u as unknown as Record<string, any>).userShortInfo ?? u;
+                  const uUsername = userInfo.username ?? userInfo.userName ?? "Профиль";
+                  const uDisplayName = userInfo.fullName ?? userInfo.fullname ?? [userInfo.firstName, userInfo.lastName].filter(Boolean).join(" ") ?? "";
+                  const uAvatar = normalizeAvatarUrl(userInfo.userPhoto ?? userInfo.avatar ?? userInfo.image ?? userInfo.avatarUrl ?? userInfo.imageUrl);
+                  const uInitial = uUsername.charAt(0).toUpperCase();
+                  const uId = userInfo.userId ?? userInfo.id ?? "";
+
+                  return (
+                    <div
+                      key={String(uId || index)}
+                      className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition"
+                      onClick={() => {
+                        setShowUsersModal(null);
+                        router.push(`/${encodeURIComponent(uUsername)}?id=${encodeURIComponent(String(uId))}`);
+                      }}
+                    >
+                      <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-ig-border bg-ig-card-bg bg-cover bg-center text-lg font-semibold text-ig-secondary"
+                        style={uAvatar ? { backgroundImage: `url(${uAvatar})` } : undefined}
+                      >
+                        {!uAvatar && uInitial}
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-sm font-semibold text-ig-fg truncate hover:underline">
+                          {uUsername}
+                        </span>
+                        {uDisplayName && (
+                          <span className="text-xs text-ig-secondary truncate">
+                            {uDisplayName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       )}

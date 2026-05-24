@@ -2,52 +2,55 @@
 
 import { Search, X, BadgeCheck, Loader2 } from "lucide-react";
 import { getFileUrl } from "@/lib/file";
-import type { SearchHistory, SearchUser } from "@/types/search";
+import type { HistoryItem, SearchUser } from "@/types/search";
 
 type SearchResultsProps = {
   query: string;
   users: SearchUser[];
-  histories: (SearchHistory & { isText?: boolean })[];
+  histories: HistoryItem[];
   isLoading?: boolean;
   isError?: boolean;
   deletingHistoryId?: string;
   onSelectUser: (user: SearchUser) => void;
-  onSelectHistory: (history: SearchHistory & { isText?: boolean }) => void;
-  onDeleteHistory: (history: SearchHistory & { isText?: boolean }) => void;
+  onSelectHistory: (item: HistoryItem) => void;
+  onDeleteHistory: (item: HistoryItem) => void;
   onClearHistory: () => void;
 };
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
-function getId(user: SearchUser) {
-  const id = user.id ?? user.userId;
+function getId(user: any) {
+  const id = user.id ?? user.Id ?? user.userId ?? user.UserId;
   return id === undefined || id === null ? "" : String(id);
 }
 
-function getHistoryId(h: SearchHistory) {
-  const id = h.searchHistoryId ?? h.id;
-  return id === undefined || id === null ? "" : String(id);
+function getUsername(user: any) {
+  return user.username ?? user.userName ?? user.UserName ?? "";
 }
 
-function getUsername(user: SearchUser) {
-  return user.username ?? user.userName ?? "";
-}
-
-function getFullName(user: SearchUser) {
+function getFullName(user: any) {
   return (
     user.fullName ??
+    user.FullName ??
+    user.fullname ??
     user.name ??
-    [user.firstName, user.lastName].filter(Boolean).join(" ")
+    user.Name ??
+    [user.firstName ?? user.FirstName, user.lastName ?? user.LastName].filter(Boolean).join(" ")
   );
 }
 
-function getAvatarFilename(user: SearchUser) {
+function getAvatarFilename(user: any) {
   return (
-    user.userImage ??
-    user.image ??
     user.avatar ??
+    user.Avatar ??
     user.avatarUrl ??
+    user.AvatarUrl ??
+    user.userImage ??
+    user.UserImage ??
+    user.image ??
+    user.Image ??
     user.imageUrl ??
+    user.ImageUrl ??
     null
   );
 }
@@ -60,16 +63,22 @@ function formatFollowers(n?: number): string {
   return String(n);
 }
 
-function getSubline(user: SearchUser): string {
+function getSubline(user: any): string {
   const parts: string[] = [];
   const fullName = getFullName(user);
   if (fullName) parts.push(fullName);
 
-  const followers = user.followersCount ?? user.subscribersCount;
-  if (followers) {
-    parts.push(`${formatFollowers(followers)} подписчиков`);
-  } else if (user.bio) {
-    parts.push(user.bio);
+  const followers =
+    user.followers ??
+    user.followersCount ??
+    user.FollowersCount ??
+    user.subscribersCount ??
+    user.SubscribersCount;
+
+  if (followers !== undefined && followers !== null && followers !== "") {
+    parts.push(`${formatFollowers(Number(followers))} подписчиков`);
+  } else if (user.bio ?? user.Bio) {
+    parts.push(user.bio ?? user.Bio);
   }
   return parts.join(" • ");
 }
@@ -90,7 +99,8 @@ function historyUser(history: SearchHistory): SearchUser {
 
 // ─── Avatar ────────────────────────────────────────────────────────────────
 
-function Avatar({ user, size = 44 }: { user: SearchUser; size?: number }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function Avatar({ user, size = 44 }: { user: any; size?: number }) {
   const filename = getAvatarFilename(user);
   const avatarUrl = getFileUrl(filename, "avatar");
   const username = getUsername(user);
@@ -101,7 +111,7 @@ function Avatar({ user, size = 44 }: { user: SearchUser; size?: number }) {
       className="shrink-0 rounded-full overflow-hidden bg-zinc-700 flex items-center justify-center"
       style={{ width: size, height: size }}
     >
-      {avatarUrl && !avatarUrl.startsWith("data:image/svg") ? (
+      {filename && avatarUrl && !avatarUrl.startsWith("data:image/svg") ? (
         <img
           src={avatarUrl}
           alt={username}
@@ -121,7 +131,7 @@ function Avatar({ user, size = 44 }: { user: SearchUser; size?: number }) {
 
 function HistoryTextIcon() {
   return (
-    <div className="shrink-0 w-11 h-11 rounded-full bg-zinc-700 flex items-center justify-center">
+    <div className="shrink-0 w-11 h-11 rounded-full bg-zinc-800 flex items-center justify-center">
       <Search className="h-5 w-5 text-zinc-300" />
     </div>
   );
@@ -132,10 +142,10 @@ function HistoryTextIcon() {
 function SkeletonRow() {
   return (
     <div className="flex items-center gap-3 px-4 py-2.5">
-      <div className="w-11 h-11 rounded-full bg-zinc-800 animate-pulse shrink-0" />
+      <div className="w-11 h-11 rounded-full bg-ig-sidebar-hover animate-pulse shrink-0" />
       <div className="flex-1 flex flex-col gap-2">
-        <div className="h-3.5 w-28 rounded bg-zinc-800 animate-pulse" />
-        <div className="h-3 w-40 rounded bg-zinc-800 animate-pulse" />
+        <div className="h-3.5 w-28 rounded bg-ig-sidebar-hover animate-pulse" />
+        <div className="h-3 w-40 rounded bg-ig-sidebar-hover animate-pulse" />
       </div>
     </div>
   );
@@ -148,16 +158,24 @@ function UserRow({
   onClick,
   rightSlot,
 }: {
-  user: SearchUser;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  user: any;
   onClick: () => void;
   rightSlot?: React.ReactNode;
 }) {
   const username = getUsername(user);
   const subline = getSubline(user);
-  const isVerified = user.isVerified || user.verified || user.isFamous || false;
+  const isVerified =
+    user.isVerified ||
+    user.IsVerified ||
+    user.verified ||
+    user.Verified ||
+    user.isFamous ||
+    user.IsFamous ||
+    false;
 
   return (
-    <div className="flex items-center gap-1 hover:bg-zinc-900 transition rounded-none">
+    <div className="flex items-center gap-1 hover:bg-ig-sidebar-hover transition rounded-none">
       <button
         type="button"
         onClick={onClick}
@@ -170,7 +188,7 @@ function UserRow({
               {username}
             </span>
             {isVerified && (
-              <BadgeCheck className="h-3.5 w-3.5 fill-sky-500 text-black shrink-0" />
+              <BadgeCheck className="h-3.5 w-3.5 fill-sky-500 text-ig-bg shrink-0" />
             )}
           </div>
           {subline && (
@@ -236,8 +254,8 @@ export default function SearchResults({
 
         {!isLoading && isError && (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <Search className="h-8 w-8 text-zinc-600" />
-            <p className="text-sm text-zinc-500">Поиск временно недоступен</p>
+            <Search className="h-8 w-8 text-ig-secondary" />
+            <p className="text-sm text-ig-secondary">Поиск временно недоступен</p>
           </div>
         )}
 
@@ -268,8 +286,8 @@ export default function SearchResults({
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3">
-        <span className="text-sm font-semibold text-white">Недавнее</span>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-ig-border">
+        <span className="text-sm font-semibold text-ig-fg">Недавнее</span>
         {histories.length > 0 && (
           <button
             type="button"
@@ -283,27 +301,26 @@ export default function SearchResults({
 
       {histories.length === 0 && (
         <div className="flex flex-col items-center gap-2 py-16 text-center">
-          <p className="text-sm text-zinc-500">Нет недавних запросов</p>
+          <p className="text-sm text-ig-secondary">Нет недавних запросов</p>
         </div>
       )}
 
       <div className="divide-y divide-zinc-900">
-        {histories.map((history, i) => {
-          const hid = getHistoryId(history);
+        {histories.map((item, i) => {
+          const hid = item.id;
           const isDeleting = !!hid && deletingHistoryId === hid;
 
-          // Text search item
-          if (history.isText) {
-            const text =
-              history.text ?? history.searchText ?? history.query ?? "";
+          // ── Text query item ──
+          if (item.type === "query") {
+            const text = item.query ?? "";
             return (
               <div
-                key={hid || `text-${text}-${i}`}
+                key={hid || `query-${text}-${i}`}
                 className="flex items-center hover:bg-zinc-900 transition"
               >
                 <button
                   type="button"
-                  onClick={() => onSelectHistory(history)}
+                  onClick={() => onSelectHistory(item)}
                   className="flex flex-1 items-center gap-3 px-4 py-2.5 text-left"
                 >
                   <HistoryTextIcon />
@@ -313,27 +330,31 @@ export default function SearchResults({
                 </button>
                 <DeleteBtn
                   disabled={!hid || isDeleting}
-                  onClick={() => onDeleteHistory(history)}
+                  onClick={() => onDeleteHistory(item)}
                 />
               </div>
             );
           }
 
-          // User history item
-          const user = historyUser(history);
-          return (
-            <UserRow
-              key={hid || `user-${getUsername(user)}-${i}`}
-              user={user}
-              onClick={() => onSelectHistory(history)}
-              rightSlot={
-                <DeleteBtn
-                  disabled={!hid || isDeleting}
-                  onClick={() => onDeleteHistory(history)}
-                />
-              }
-            />
-          );
+          // ── User item ──
+          if (item.type === "user" && item.user) {
+            const user = item.user;
+            return (
+              <UserRow
+                key={hid || `user-${user.username}-${i}`}
+                user={user}
+                onClick={() => onSelectHistory(item)}
+                rightSlot={
+                  <DeleteBtn
+                    disabled={!hid || isDeleting}
+                    onClick={() => onDeleteHistory(item)}
+                  />
+                }
+              />
+            );
+          }
+
+          return null;
         })}
       </div>
     </div>

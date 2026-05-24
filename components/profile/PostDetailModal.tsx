@@ -21,7 +21,7 @@ import {
   useDeleteCommentMutation,
   useDeletePostMutation,
 } from "@/store/api/postsApi";
-import type { ProfilePost, UserProfile } from "@/types/profile";
+import type { ProfilePost, UserProfile, PostComment } from "@/types/profile";
 
 type PostDetailModalProps = {
   post: ProfilePost;

@@ -723,21 +723,12 @@ function EditStep({
                             : "border-zinc-800 group-hover:border-zinc-600"
                         }`}
                       >
-                        {mediaKind === "video" ? (
-                          <video
-                            src={previewUrl}
-                            muted
-                            className="h-full w-full object-cover"
-                            style={{ filter: item.css }}
-                          />
-                        ) : (
                           <img
                             src={previewUrl}
                             alt={`${item.name} filter preview`}
                             className="h-full w-full object-cover"
                             style={{ filter: item.css }}
                           />
-                        )}
                       </div>
                       <span
                         className={`mt-1 block truncate text-center text-xs ${

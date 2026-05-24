@@ -13,6 +13,8 @@ export type ProfilePost = {
   id?: ProfileId;
   postId?: ProfileId;
   userId?: ProfileId;
+  userName?: string;
+  userImage?: string;
   title?: string;
   content?: string;
   mediaUrl?: string;
