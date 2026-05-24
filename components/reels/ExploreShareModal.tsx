@@ -64,14 +64,27 @@ export default function ExploreShareModal({
 
       // 2. Prepare sharing text (Link to this Reel on the website)
       const reelLink = `${window.location.origin}/reels?id=${reel.id}`;
+      const videoUrl = reel.videoUrl;
       const finalMessage = messageText.trim()
-        ? `${messageText.trim()}\n\n🎬 Watch Reel: ${reelLink}`
-        : `🎬 Shared a reel: ${reelLink}`;
+        ? `${messageText.trim()}\n\n🎬 Watch Reel: ${reelLink}${videoUrl ? ` |videoUrl:${videoUrl}|` : ""}`
+        : (videoUrl ? `|videoUrl:${videoUrl}|` : `🎬 Shared a reel: ${reelLink}`);
+
+      let videoFile: File | undefined = undefined;
+      if (videoUrl) {
+        try {
+          const response = await fetch(videoUrl);
+          const blob = await response.blob();
+          videoFile = new File([blob], `reel-${reel.id}.mp4`, { type: "video/mp4" });
+        } catch (e) {
+          console.error("Failed to fetch video for sharing", e);
+        }
+      }
 
       // 3. Send message
       await sendMessage({
         chatId: Number(chatId),
         messageText: finalMessage,
+        file: videoFile,
       }).unwrap();
 
       setSendStatus("success");

@@ -6,6 +6,7 @@ import { X, Check } from "lucide-react";
 import { useGetUsersQuery } from "@/store/api/searchApi";
 import { getFileUrl } from "@/lib/file";
 import type { SearchUser } from "@/types/search";
+import { useCreateChatMutation, useSendMessageMutation } from "@/store/api/chatApi";
 import ShareUserGrid from "./ShareUserGrid";
 import ShareActionBar from "./ShareActionBar";
 
@@ -61,6 +62,9 @@ export default function ShareSheet({
     { skip: !isOpen }
   );
 
+  const [createChat] = useCreateChatMutation();
+  const [sendMessage] = useSendMessageMutation();
+
   // Trigger Toast Notification
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -80,9 +84,47 @@ export default function ShareSheet({
     });
   };
 
-  // Purely local simulation flow for sending (strictly following user constraints)
-  const handleSendIndividually = () => {
-    showToast("Sent locally");
+  // Send reel and message to selected users
+  const handleSendIndividually = async () => {
+    if (selectedUsers.length === 0) return;
+
+    showToast("Отправка...");
+
+    try {
+      let videoFile: File | undefined = undefined;
+      if (videoUrl) {
+        try {
+          const response = await fetch(videoUrl);
+          const blob = await response.blob();
+          videoFile = new File([blob], `reel-${reelId}.mp4`, { type: "video/mp4" });
+        } catch (e) {
+          console.error("Failed to fetch video for sharing", e);
+        }
+      }
+
+      for (const user of selectedUsers) {
+        const chatRes = await createChat({ receiverUserId: user.id }).unwrap();
+        const chatId = chatRes?.data || chatRes;
+
+        if (chatId) {
+          const reelLink = `${window.location.origin}/reels?id=${reelId}`;
+          const finalMessage = messageText.trim()
+            ? `${messageText.trim()}\n\n🎬 Watch Reel: ${reelLink}${videoUrl ? ` |videoUrl:${videoUrl}|` : ""}`
+            : (videoUrl ? `|videoUrl:${videoUrl}|` : `🎬 Shared a reel: ${reelLink}`);
+
+          await sendMessage({
+            chatId: Number(chatId),
+            messageText: finalMessage,
+            file: videoFile,
+          }).unwrap();
+        }
+      }
+
+      showToast("Успешно отправлено!");
+    } catch (error) {
+      console.error("Error sharing reel:", error);
+      showToast("Ошибка при отправке");
+    }
 
     // Clear selection and message input
     setSelectedUsers([]);
