@@ -140,7 +140,9 @@ export default function ProfileHeader({
 
   // Compute target user ID before any early returns (React rules of hooks)
   const isOwnProfile = !!profile?.isMyProfile;
-  const targetUserId = isOwnProfile ? "" : String(profile?.id ?? profile?.userId ?? "");
+  const targetUserId = isOwnProfile
+    ? ""
+    : String(profile?.id ?? profile?.userId ?? "");
 
   // Fetch this profile's stories
   const { data: otherStoriesResponse } = useGetUserStoriesQuery(targetUserId, {
@@ -192,12 +194,15 @@ export default function ProfileHeader({
     });
 
   // Local optimistic state: undefined = not yet overridden
-  const [localIsFollowing, setLocalIsFollowing] = useState<boolean | undefined>(undefined);
+  const [localIsFollowing, setLocalIsFollowing] = useState<boolean | undefined>(
+    undefined,
+  );
 
   // Final follow value: local optimistic → API → false
-  const isFollowing = localIsFollowing !== undefined
-    ? localIsFollowing
-    : (isFollowingFromApi ?? profile?.isFollowing ?? false);
+  const isFollowing =
+    localIsFollowing !== undefined
+      ? localIsFollowing
+      : (isFollowingFromApi ?? profile?.isFollowing ?? false);
 
   const baseFollowersCount = getFollowersCount(profile);
   
@@ -401,7 +406,11 @@ export default function ProfileHeader({
                 <button
                   type="button"
                   onClick={handleFollow}
-                  disabled={isFollowingLoading || isUnfollowingLoading || isFollowCheckLoading}
+                  disabled={
+                    isFollowingLoading ||
+                    isUnfollowingLoading ||
+                    isFollowCheckLoading
+                  }
                   className={`inline-flex h-8 items-center justify-center rounded-lg px-6 text-sm font-semibold transition disabled:opacity-50 ${
                     isFollowing
                       ? "bg-ig-sidebar-hover hover:bg-ig-hover text-ig-fg"
@@ -411,8 +420,8 @@ export default function ProfileHeader({
                   {isFollowCheckLoading
                     ? "..."
                     : isFollowing
-                    ? "Отписаться"
-                    : "Подписаться"}
+                      ? "Отписаться"
+                      : "Подписаться"}
                 </button>
               )}
             </div>
@@ -459,15 +468,24 @@ export default function ProfileHeader({
             {bio ? (
               <p className="mt-1 whitespace-pre-line text-zinc-200">{bio}</p>
             ) : (
-              <p className="mt-1 text-ig-secondary">Описание пока не добавлено.</p>
+              <p className="mt-1 text-ig-secondary">
+                Описание пока не добавлено.
+              </p>
             )}
           </div>
         </div>
       </div>
 
+      {/* here */}
       {/* Settings Options Modal */}
       {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <div
+          onClick={(e) => {
+            if (e.target === profModal.current) setShowSettings(false);
+          }}
+          ref={profModal}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+        >
           <div className="w-full max-w-sm overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 text-center shadow-2xl">
             <button
               type="button"

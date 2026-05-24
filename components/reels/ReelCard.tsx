@@ -349,6 +349,7 @@ export default function ReelCard({
           isOpen={isShareOpen}
           onClose={() => setIsShareOpen(false)}
           reelId={reel.id}
+          videoUrl={reel.videoUrl || undefined}
         />
 
         {/* More Menu Bottom Sheet Drawer */}
