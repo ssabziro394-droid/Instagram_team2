@@ -3,7 +3,9 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check } from "lucide-react";
-import { useGetUsersQuery } from "@/store/api/reelsApi";
+import { useGetUsersQuery } from "@/store/api/searchApi";
+import { getFileUrl } from "@/lib/file";
+import type { SearchUser } from "@/types/search";
 import ShareUserGrid from "./ShareUserGrid";
 import ShareActionBar from "./ShareActionBar";
 
@@ -18,6 +20,28 @@ interface ShareSheetProps {
   onClose: () => void;
   reelId: string;
   videoUrl?: string;
+}
+
+function toShareUser(user: SearchUser, index: number): User {
+  const id = user.id ?? user.userId ?? `user-${index}`;
+  const username =
+    user.username ??
+    user.userName ??
+    user.fullName ??
+    user.name ??
+    `user_${index}`;
+  const avatar =
+    user.avatarUrl ??
+    user.imageUrl ??
+    user.userImage ??
+    user.image ??
+    user.avatar;
+
+  return {
+    id: String(id),
+    username,
+    avatarUrl: getFileUrl(avatar, "avatar"),
+  };
 }
 
 export default function ShareSheet({
@@ -143,6 +167,7 @@ export default function ShareSheet({
     showToast("Создание группы...");
   };
 
+  const users = (apiUsers ?? []).map(toShareUser);
   const hasSelected = selectedUsers.length > 0;
 
   return (
@@ -155,7 +180,7 @@ export default function ShareSheet({
             animate={{ opacity: 0.65 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/70 backdrop-blur-[2px] z-40 cursor-pointer"
+            className="fixed inset-0 bg-black/70 backdrop-blur-[2px] z-40 cursor-pointer"
           />
 
           {/* Premium Bottom Sheet Drawer (Light/Dark Mode Adaptive) */}
@@ -164,7 +189,7 @@ export default function ShareSheet({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 29, stiffness: 240 }}
-            className="absolute bottom-0 left-0 right-0 h-[65vh] max-h-[70vh] rounded-t-[30px] bg-white dark:bg-[#1c1c1e] border-t border-zinc-200 dark:border-zinc-800/60 z-50 flex flex-col shadow-2xl overflow-hidden text-black dark:text-white transition-colors duration-150"
+            className="fixed bottom-0 left-0 right-0 md:left-1/2 md:-translate-x-1/2 md:w-[460px] h-[65vh] max-h-[70vh] rounded-t-[30px] bg-white dark:bg-[#1c1c1e] border-t border-zinc-200 dark:border-zinc-800/60 z-50 flex flex-col shadow-2xl overflow-hidden text-black dark:text-white transition-colors duration-150"
           >
             {/* Visual Drag Handle */}
             <div className="w-full flex justify-center py-3.5 cursor-pointer select-none" onClick={onClose}>
@@ -177,7 +202,7 @@ export default function ShareSheet({
               <h3 className="font-bold text-[15px] tracking-wide select-none">Поделиться</h3>
               <button
                 onClick={onClose}
-                className="p-1 rounded-full hover:bg-zinc-100 dark:hover:bg-[#2c2c2e] text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-white transition-colors"
+                className="p-1 rounded-full hover:bg-zinc-100 dark:hover:bg-[#2c2c2e] text-ig-secondary dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -185,7 +210,7 @@ export default function ShareSheet({
 
             {/* User Search & Grid section */}
             <ShareUserGrid
-              users={apiUsers || []}
+              users={users}
               isLoading={isLoading}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
@@ -202,7 +227,7 @@ export default function ShareSheet({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute left-1/2 -translate-x-1/2 bottom-[180px] z-[60] bg-zinc-900/95 border border-zinc-800 text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2 select-none min-w-[160px] justify-center"
+                  className="absolute left-1/2 -translate-x-1/2 bottom-[180px] z-[60] bg-zinc-900/95 border border-ig-border text-ig-fg text-xs font-semibold px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2 select-none min-w-[160px] justify-center"
                 >
                   <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" />
                   <span>{toastMessage}</span>
@@ -234,7 +259,7 @@ export default function ShareSheet({
                   {/* Send Individually blue button */}
                   <button
                     onClick={handleSendIndividually}
-                    className="w-full bg-[#3897f0] hover:bg-[#2083e1] text-white py-3 rounded-xl font-bold text-[13.5px] active:scale-[0.97] hover:scale-[1.01] transition-all text-center select-none cursor-pointer shadow-md shadow-blue-500/10"
+                    className="w-full bg-[#3897f0] hover:bg-[#2083e1] text-ig-fg py-3 rounded-xl font-bold text-[13.5px] active:scale-[0.97] hover:scale-[1.01] transition-all text-center select-none cursor-pointer shadow-md shadow-blue-500/10"
                   >
                     Отправить по отдельности
                   </button>

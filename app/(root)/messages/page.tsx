@@ -12,7 +12,7 @@ export default function MessagesPage() {
   console.log(isNewMessageModalOpen);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] md:h-screen w-full bg-zinc-950 text-zinc-50 overflow-hidden">
+    <div className="flex h-full w-full bg-ig-bg text-ig-fg overflow-hidden">
       {/* Sidebar - Left Column */}
       <ChatSidebar
         activeChatId={activeChatId}

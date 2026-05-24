@@ -11,9 +11,7 @@ import { useRouter } from "next/navigation";
 
 export default function ReelsPage() {
   // 1. Fetch from Swagger endpoint via RTK Query
-  const { data: reelsFromApi, isLoading, isError, error, refetch } = useGetReelsQuery({ pageNumber: 1, pageSize: 10 }, {
-    refetchOnMountOrArgChange: true,
-  });
+  const { data: reelsFromApi, isLoading, isError, error, refetch } = useGetReelsQuery({ pageNumber: 1, pageSize: 10 });
 
   // 2. Local state to manage live interactive edits (likes, saves, follows, comments) without database mutations
   const [reelsList, setReelsList] = useState<Reel[]>([]);
@@ -187,9 +185,9 @@ export default function ReelsPage() {
   // 4. Loading State
   if (isLoading) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center bg-black">
+      <div className="h-full w-full flex flex-col items-center justify-center bg-ig-bg">
         {/* Shimmer multi-skeleton stack */}
-        <div className="w-full h-[calc(100vh-64px)] md:h-screen max-w-[460px] overflow-hidden bg-black flex flex-col">
+        <div className="w-full h-full max-w-[460px] overflow-hidden bg-ig-bg flex flex-col">
           <ReelSkeleton />
         </div>
       </div>
@@ -201,8 +199,8 @@ export default function ReelsPage() {
 
   if (reelsList.length === 0) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center bg-black text-white px-4 md:px-0 py-6">
-        <div className="w-full max-w-[460px] h-[calc(100vh-64px)] md:h-screen flex flex-col items-center justify-center bg-zinc-950 md:rounded-xl md:border md:border-zinc-900/50 p-8 text-center relative overflow-hidden shadow-2xl">
+      <div className="h-full w-full flex flex-col items-center justify-center bg-ig-bg text-ig-fg px-4 md:px-0 py-6">
+        <div className="w-full max-w-[460px] h-full flex flex-col items-center justify-center bg-zinc-950 md:rounded-xl md:border md:border-zinc-900/50 p-8 text-center relative overflow-hidden shadow-2xl">
           {/* Subtle glow overlays */}
           <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] rounded-full bg-purple-900/20 blur-[100px] pointer-events-none" />
           <div className="absolute -bottom-[10%] -right-[10%] w-[50%] h-[50%] rounded-full bg-pink-900/20 blur-[100px] pointer-events-none" />
@@ -214,22 +212,22 @@ export default function ReelsPage() {
                 <Lock className="w-9 h-9 text-amber-500" />
               </div>
               <h2 className="text-xl font-bold mb-2 tracking-tight z-10">Authentication Required</h2>
-              <p className="text-sm text-zinc-400 mb-6 leading-relaxed max-w-[320px] z-10">
+              <p className="text-sm text-ig-secondary mb-6 leading-relaxed max-w-[320px] z-10">
                 You must be logged in to view Reels. The API server rejected this request with a 401 Unauthorized response.
               </p>
 
               {/* Tech details card */}
               <div className="w-full bg-zinc-900/50 rounded-xl p-4 mb-6 border border-zinc-800/80 text-left font-mono text-[11px] z-10 font-sans">
                 <div className="flex flex-col gap-2">
-                  <div className="flex justify-between items-center text-zinc-500">
+                  <div className="flex justify-between items-center text-ig-secondary">
                     <span>Endpoint:</span>
                     <span className="text-zinc-300 font-semibold font-sans">GET /Post/get-reels</span>
                   </div>
-                  <div className="flex justify-between items-center text-zinc-500">
+                  <div className="flex justify-between items-center text-ig-secondary">
                     <span>HTTP Status:</span>
                     <span className="text-amber-500 font-semibold font-sans">401 Unauthorized</span>
                   </div>
-                  <div className="flex flex-col gap-0.5 text-zinc-500">
+                  <div className="flex flex-col gap-0.5 text-ig-secondary">
                     <span>Base API URL:</span>
                     <span className="text-sky-400 break-all select-all font-medium mt-0.5">{apiUrl}</span>
                   </div>
@@ -239,7 +237,7 @@ export default function ReelsPage() {
               {/* Go to Login Button */}
               <a
                 href="/login"
-                className="flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-sky-500 to-blue-600 rounded-full font-semibold text-sm hover:opacity-95 hover:shadow-[0_4px_20px_rgba(14,165,233,0.3)] active:scale-95 transition-all text-white cursor-pointer z-10 w-full max-w-[280px]"
+                className="flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-sky-500 to-blue-600 rounded-full font-semibold text-sm hover:opacity-95 hover:shadow-[0_4px_20px_rgba(14,165,233,0.3)] active:scale-95 transition-all text-ig-fg cursor-pointer z-10 w-full max-w-[280px]"
               >
                 <span>Go to Login Screen</span>
               </a>
@@ -251,22 +249,22 @@ export default function ReelsPage() {
                 <WifiOff className="w-9 h-9 text-red-500" />
               </div>
               <h2 className="text-xl font-bold mb-2 tracking-tight z-10">API Connection Failed</h2>
-              <p className="text-sm text-zinc-400 mb-6 leading-relaxed max-w-[320px] z-10">
+              <p className="text-sm text-ig-secondary mb-6 leading-relaxed max-w-[320px] z-10">
                 Could not establish a connection to the Reels API server. Please ensure the server is active and accessible.
               </p>
 
               {/* Tech details card */}
               <div className="w-full bg-zinc-900/50 rounded-xl p-4 mb-6 border border-zinc-800/80 text-left font-mono text-[11px] z-10 font-sans">
                 <div className="flex flex-col gap-2">
-                  <div className="flex justify-between items-center text-zinc-500">
+                  <div className="flex justify-between items-center text-ig-secondary">
                     <span>Endpoint:</span>
                     <span className="text-zinc-300 font-semibold font-sans">GET /Post/get-reels</span>
                   </div>
-                  <div className="flex flex-col gap-0.5 text-zinc-500 font-sans">
+                  <div className="flex flex-col gap-0.5 text-ig-secondary font-sans">
                     <span>Target Server Base URL:</span>
                     <span className="text-sky-400 break-all select-all font-medium mt-0.5">{apiUrl}</span>
                   </div>
-                  <div className="flex justify-between items-center text-zinc-500 font-sans">
+                  <div className="flex justify-between items-center text-ig-secondary font-sans">
                     <span>Env Variable:</span>
                     <span className="text-purple-400 font-medium">NEXT_PUBLIC_API_URL</span>
                   </div>
@@ -276,7 +274,7 @@ export default function ReelsPage() {
               {/* Action Retry button */}
               <button
                 onClick={() => refetch()}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-650 rounded-full font-semibold text-sm hover:opacity-95 hover:shadow-[0_4px_20px_rgba(147,51,234,0.3)] active:scale-95 transition-all text-white cursor-pointer z-10"
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-650 rounded-full font-semibold text-sm hover:opacity-95 hover:shadow-[0_4px_20px_rgba(147,51,234,0.3)] active:scale-95 transition-all text-ig-fg cursor-pointer z-10"
               >
                 <RefreshCw className="w-4 h-4 animate-spin-hover" />
                 <span>Retry Connection</span>
@@ -285,26 +283,26 @@ export default function ReelsPage() {
           ) : (
             <>
               {/* Empty Data Visual */}
-              <div className="w-18 h-18 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-6 z-10">
-                <Film className="w-9 h-9 text-zinc-500" />
+              <div className="w-18 h-18 rounded-full bg-zinc-900 border border-ig-border flex items-center justify-center mb-6 z-10">
+                <Film className="w-9 h-9 text-ig-secondary" />
               </div>
               <h2 className="text-xl font-bold mb-2 tracking-tight z-10">No Reels Available</h2>
-              <p className="text-sm text-zinc-400 mb-6 leading-relaxed max-w-[320px] z-10">
+              <p className="text-sm text-ig-secondary mb-6 leading-relaxed max-w-[320px] z-10">
                 The API server successfully returned an empty array of Reels. Check your database or seed data to load Reels.
               </p>
 
               {/* Tech details card */}
               <div className="w-full bg-zinc-900/50 rounded-xl p-4 mb-6 border border-zinc-800/80 text-left font-mono text-[11px] z-10 font-sans">
                 <div className="flex flex-col gap-2">
-                  <div className="flex justify-between items-center text-zinc-500">
+                  <div className="flex justify-between items-center text-ig-secondary">
                     <span>Response Status:</span>
                     <span className="text-green-500 font-semibold font-sans">200 OK</span>
                   </div>
-                  <div className="flex flex-col gap-0.5 text-zinc-500 font-sans">
+                  <div className="flex flex-col gap-0.5 text-ig-secondary font-sans">
                     <span>Query Endpoint:</span>
                     <span className="text-sky-400 break-all select-all font-medium mt-0.5">{apiUrl}/Post/get-reels</span>
                   </div>
-                  <div className="flex justify-between items-center text-zinc-500 font-sans">
+                  <div className="flex justify-between items-center text-ig-secondary font-sans">
                     <span>Parsed Payload:</span>
                     <span className="text-zinc-300 font-medium">[] (Empty List)</span>
                   </div>
@@ -314,7 +312,7 @@ export default function ReelsPage() {
               {/* Action Retry button */}
               <button
                 onClick={() => refetch()}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-650 rounded-full font-semibold text-sm hover:opacity-95 hover:shadow-[0_4px_20px_rgba(147,51,234,0.3)] active:scale-95 transition-all text-white cursor-pointer z-10"
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-650 rounded-full font-semibold text-sm hover:opacity-95 hover:shadow-[0_4px_20px_rgba(147,51,234,0.3)] active:scale-95 transition-all text-ig-fg cursor-pointer z-10"
               >
                 <RefreshCw className="w-4 h-4 animate-spin-hover" />
                 <span>Retry Connection</span>
@@ -328,11 +326,11 @@ export default function ReelsPage() {
 
   // 6. Normal Flow (Playable Reels Snap Feed)
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center bg-black relative">
+    <div className="h-full w-full flex flex-col items-center justify-center bg-ig-bg relative">
       {/* Main Snap-Scroll Container */}
       <div
         ref={containerRef}
-        className="w-full h-[calc(100vh-64px)] md:h-screen overflow-y-scroll snap-y snap-mandatory scrollbar-none flex flex-col items-center"
+        className="w-full h-full overflow-y-scroll snap-y snap-mandatory scrollbar-none flex flex-col items-center"
         style={{
           scrollSnapStop: "always",
         }}

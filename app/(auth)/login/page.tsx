@@ -44,10 +44,11 @@ export default function LoginPage() {
       } else if (response?.errors?.length) {
         setServerError(response.errors.join(", "));
       }
-    } catch (err: any) {
+    } catch (err) {
+      const error = err as { data?: { errors?: string[]; title?: string } };
       setServerError(
-        err?.data?.errors?.join(", ") ||
-          err?.data?.title ||
+        error?.data?.errors?.join(", ") ||
+          error?.data?.title ||
           "Ошибка при входе. Проверьте данные.",
       );
     }

@@ -15,14 +15,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setIsMounted(true);
-    if (!token) {
+    if (!token && pathName !== "/login" && pathName !== "/register") {
       router.replace("/login");
     }
 
-    if ((pathName === "/login" || pathName === "/register") && token) {
+    if (token && (pathName === "/login" || pathName === "/register")) {
       router.push("/");
     }
-  }, [token, router]);
+  }, [token, router, pathName]);
 
   if (!isMounted) {
     return (

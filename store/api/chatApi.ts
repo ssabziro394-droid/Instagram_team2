@@ -80,7 +80,7 @@ export const chatApi = baseApi
       }),
 
       // here
-      getUsers: builder.query<
+      getChatUsers: builder.query<
         { data: any[]; errors: any[]; statusCode: number },
         {
           UserName?: string;
@@ -95,7 +95,7 @@ export const chatApi = baseApi
           params: params || undefined,
         }),
       }),
-      getMyProfile: builder.query<
+      getChatMyProfile: builder.query<
         { data: any; errors: any[]; statusCode: number },
         void
       >({
@@ -114,6 +114,6 @@ export const {
   useSendMessageMutation,
   useDeleteMessageMutation,
   useDeleteChatMutation,
-  useGetUsersQuery,
-  useGetMyProfileQuery,
+  useGetChatUsersQuery,
+  useGetChatMyProfileQuery,
 } = chatApi;

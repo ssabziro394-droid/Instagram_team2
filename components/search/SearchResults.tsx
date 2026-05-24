@@ -1,33 +1,36 @@
 "use client";
 
-import { Clock, Search, Trash2, UserRound } from "lucide-react";
+import { Search, X, BadgeCheck, Loader2 } from "lucide-react";
+import { getFileUrl } from "@/lib/file";
 import type { SearchHistory, SearchUser } from "@/types/search";
 
 type SearchResultsProps = {
   query: string;
   users: SearchUser[];
-  histories: SearchHistory[];
+  histories: (SearchHistory & { isText?: boolean })[];
   isLoading?: boolean;
   isError?: boolean;
   deletingHistoryId?: string;
   onSelectUser: (user: SearchUser) => void;
-  onSelectHistory: (history: SearchHistory) => void;
-  onDeleteHistory: (history: SearchHistory) => void;
+  onSelectHistory: (history: SearchHistory & { isText?: boolean }) => void;
+  onDeleteHistory: (history: SearchHistory & { isText?: boolean }) => void;
   onClearHistory: () => void;
 };
 
-function getUserId(user: SearchUser) {
+// ─── helpers ───────────────────────────────────────────────────────────────
+
+function getId(user: SearchUser) {
   const id = user.id ?? user.userId;
   return id === undefined || id === null ? "" : String(id);
 }
 
-function getHistoryId(history: SearchHistory) {
-  const id = history.searchHistoryId ?? history.id;
+function getHistoryId(h: SearchHistory) {
+  const id = h.searchHistoryId ?? h.id;
   return id === undefined || id === null ? "" : String(id);
 }
 
 function getUsername(user: SearchUser) {
-  return user.username ?? user.userName ?? "user";
+  return user.username ?? user.userName ?? "";
 }
 
 function getFullName(user: SearchUser) {
@@ -38,8 +41,36 @@ function getFullName(user: SearchUser) {
   );
 }
 
-function getAvatarUrl(user: SearchUser) {
-  return user.avatarUrl ?? user.imageUrl ?? user.image ?? user.avatar ?? "";
+function getAvatarFilename(user: SearchUser) {
+  return (
+    user.userImage ??
+    user.image ??
+    user.avatar ??
+    user.avatarUrl ??
+    user.imageUrl ??
+    null
+  );
+}
+
+function formatFollowers(n?: number): string {
+  if (!n) return "";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(".0", "")} млн`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)} тыс.`;
+  return String(n);
+}
+
+function getSubline(user: SearchUser): string {
+  const parts: string[] = [];
+  const fullName = getFullName(user);
+  if (fullName) parts.push(fullName);
+
+  const followers = user.followersCount ?? user.subscribersCount;
+  if (followers) {
+    parts.push(`${formatFollowers(followers)} подписчиков`);
+  } else if (user.bio) {
+    parts.push(user.bio);
+  }
+  return parts.join(" • ");
 }
 
 function historyUser(history: SearchHistory): SearchUser {
@@ -54,51 +85,126 @@ function historyUser(history: SearchHistory): SearchUser {
   );
 }
 
-function Avatar({ user }: { user: SearchUser }) {
+// ─── Avatar ────────────────────────────────────────────────────────────────
+
+function Avatar({ user, size = 44 }: { user: SearchUser; size?: number }) {
+  const filename = getAvatarFilename(user);
+  const avatarUrl = getFileUrl(filename, "avatar");
   const username = getUsername(user);
-  const avatarUrl = getAvatarUrl(user);
+  const initials = username ? username.charAt(0).toUpperCase() : "?";
 
   return (
     <div
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-zinc-900 bg-cover bg-center text-sm font-semibold text-zinc-500"
-      style={avatarUrl ? { backgroundImage: `url(${avatarUrl})` } : undefined}
-      aria-label={`${username} avatar`}
+      className="shrink-0 rounded-full overflow-hidden bg-zinc-700 flex items-center justify-center"
+      style={{ width: size, height: size }}
     >
-      {!avatarUrl && username.charAt(0).toUpperCase()}
+      {avatarUrl && !avatarUrl.startsWith("data:image/svg") ? (
+        <img
+          src={avatarUrl}
+          alt={username}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+      ) : (
+        <span className="text-sm font-semibold text-zinc-300">{initials}</span>
+      )}
     </div>
   );
 }
 
+// ─── HistoryTextIcon ────────────────────────────────────────────────────────
+
+function HistoryTextIcon() {
+  return (
+    <div className="shrink-0 w-11 h-11 rounded-full bg-zinc-700 flex items-center justify-center">
+      <Search className="h-5 w-5 text-zinc-300" />
+    </div>
+  );
+}
+
+// ─── Skeleton ───────────────────────────────────────────────────────────────
+
+function SkeletonRow() {
+  return (
+    <div className="flex items-center gap-3 px-4 py-2.5">
+      <div className="w-11 h-11 rounded-full bg-zinc-800 animate-pulse shrink-0" />
+      <div className="flex-1 flex flex-col gap-2">
+        <div className="h-3.5 w-28 rounded bg-zinc-800 animate-pulse" />
+        <div className="h-3 w-40 rounded bg-zinc-800 animate-pulse" />
+      </div>
+    </div>
+  );
+}
+
+// ─── UserRow ────────────────────────────────────────────────────────────────
+
 function UserRow({
   user,
   onClick,
+  rightSlot,
 }: {
   user: SearchUser;
   onClick: () => void;
+  rightSlot?: React.ReactNode;
 }) {
   const username = getUsername(user);
-  const fullName = getFullName(user);
+  const subline = getSubline(user);
+  const isVerified = user.isVerified || user.verified || user.isFamous || false;
 
+  return (
+    <div className="flex items-center gap-1 hover:bg-zinc-900 transition rounded-none">
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex flex-1 items-center gap-3 px-4 py-2.5 text-left"
+      >
+        <Avatar user={user} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-semibold text-white truncate">{username}</span>
+            {isVerified && (
+              <BadgeCheck className="h-3.5 w-3.5 fill-sky-500 text-black shrink-0" />
+            )}
+          </div>
+          {subline && (
+            <span className="text-xs text-zinc-500 block truncate mt-0.5">{subline}</span>
+          )}
+        </div>
+      </button>
+      {rightSlot}
+    </div>
+  );
+}
+
+// ─── DeleteButton ───────────────────────────────────────────────────────────
+
+function DeleteBtn({
+  disabled,
+  onClick,
+}: {
+  disabled?: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition hover:bg-zinc-900"
+      disabled={disabled}
+      className="mr-3 shrink-0 flex items-center justify-center w-7 h-7 rounded-full text-zinc-400 hover:text-white transition disabled:opacity-40"
+      aria-label="Удалить"
     >
-      <Avatar user={user} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-white">
-          {username}
-        </span>
-        {fullName && (
-          <span className="block truncate text-sm text-zinc-500">
-            {fullName}
-          </span>
-        )}
-      </span>
+      {disabled ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <X className="h-4 w-4" />
+      )}
     </button>
   );
 }
+
+// ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function SearchResults({
   query,
@@ -114,103 +220,110 @@ export default function SearchResults({
 }: SearchResultsProps) {
   const hasQuery = query.length > 0;
 
+  // ── Search results ──────────────────────────────────────────────────────
   if (hasQuery) {
     return (
-      <div className="rounded-lg border border-zinc-800 bg-black">
-        {isLoading && (
-          <div className="flex flex-col gap-1 p-3">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="flex items-center gap-3 px-3 py-3">
-                <div className="h-11 w-11 animate-pulse rounded-full bg-zinc-900" />
-                <div className="flex flex-1 flex-col gap-2">
-                  <div className="h-4 w-32 animate-pulse rounded bg-zinc-900" />
-                  <div className="h-3 w-44 animate-pulse rounded bg-zinc-900" />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      <div className="divide-y divide-zinc-900">
+        {isLoading &&
+          Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)}
 
         {!isLoading && isError && (
-          <div className="flex flex-col items-center gap-2 px-4 py-12 text-center text-zinc-500">
-            <Search className="h-8 w-8" />
-            <p className="text-sm">Search is unavailable right now.</p>
+          <div className="flex flex-col items-center gap-2 py-16 text-center">
+            <Search className="h-8 w-8 text-zinc-600" />
+            <p className="text-sm text-zinc-500">Поиск временно недоступен</p>
           </div>
         )}
 
         {!isLoading && !isError && users.length === 0 && (
-          <div className="flex flex-col items-center gap-2 px-4 py-12 text-center text-zinc-500">
-            <UserRound className="h-8 w-8" />
-            <p className="text-sm">No users found.</p>
+          <div className="flex flex-col items-center gap-2 py-16 text-center">
+            <p className="text-sm font-semibold text-white">Результаты не найдены</p>
+            <p className="text-sm text-zinc-500">Поиск: «{query}»</p>
           </div>
         )}
 
-        {!isLoading && !isError && users.length > 0 && (
-          <div className="p-2">
-            {users.map((user, index) => (
-              <UserRow
-                key={getUserId(user) || `${getUsername(user)}-${index}`}
-                user={user}
-                onClick={() => onSelectUser(user)}
-              />
-            ))}
-          </div>
-        )}
+        {!isLoading &&
+          !isError &&
+          users.map((user, i) => (
+            <UserRow
+              key={getId(user) || `${getUsername(user)}-${i}`}
+              user={user}
+              onClick={() => onSelectUser(user)}
+            />
+          ))}
       </div>
     );
   }
 
+  // ── Recent history ──────────────────────────────────────────────────────
   return (
-    <div className="rounded-lg border border-zinc-800 bg-black">
-      <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-        <h2 className="text-sm font-semibold text-white">Recent</h2>
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3">
+        <span className="text-sm font-semibold text-white">Недавнее</span>
         {histories.length > 0 && (
           <button
             type="button"
             onClick={onClearHistory}
-            className="text-sm font-semibold text-sky-400 transition hover:text-sky-300"
+            className="text-sm font-semibold text-sky-500 hover:text-sky-400 transition"
           >
-            Clear all
+            Очистить все
           </button>
         )}
       </div>
 
-      {histories.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 px-4 py-12 text-center text-zinc-500">
-          <Clock className="h-8 w-8" />
-          <p className="text-sm">No recent searches.</p>
-        </div>
-      ) : (
-        <div className="p-2">
-          {histories.map((history, index) => {
-            const user = historyUser(history);
-            const historyId = getHistoryId(history);
-
-            return (
-              <div
-                key={historyId || `${getUsername(user)}-${index}`}
-                className="group flex items-center gap-2 rounded-lg pr-2 transition hover:bg-zinc-900"
-              >
-                <div className="min-w-0 flex-1">
-                  <UserRow
-                    user={user}
-                    onClick={() => onSelectHistory(history)}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onDeleteHistory(history)}
-                  disabled={!historyId || deletingHistoryId === historyId}
-                  className="rounded-full p-2 text-zinc-500 opacity-100 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100"
-                  aria-label="Delete recent search"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            );
-          })}
+      {histories.length === 0 && (
+        <div className="flex flex-col items-center gap-2 py-16 text-center">
+          <p className="text-sm text-zinc-500">Нет недавних запросов</p>
         </div>
       )}
+
+      <div className="divide-y divide-zinc-900">
+        {histories.map((history, i) => {
+          const hid = getHistoryId(history);
+          const isDeleting = !!hid && deletingHistoryId === hid;
+
+          // Text search item
+          if (history.isText) {
+            const text =
+              history.text ?? history.searchText ?? history.query ?? "";
+            return (
+              <div
+                key={hid || `text-${text}-${i}`}
+                className="flex items-center hover:bg-zinc-900 transition"
+              >
+                <button
+                  type="button"
+                  onClick={() => onSelectHistory(history)}
+                  className="flex flex-1 items-center gap-3 px-4 py-2.5 text-left"
+                >
+                  <HistoryTextIcon />
+                  <span className="text-sm font-medium text-white truncate">{text}</span>
+                </button>
+                <DeleteBtn
+                  disabled={!hid || isDeleting}
+                  onClick={() => onDeleteHistory(history)}
+                />
+              </div>
+            );
+          }
+
+          // User history item
+          const user = historyUser(history);
+          return (
+            <UserRow
+              key={hid || `user-${getUsername(user)}-${i}`}
+              user={user}
+              onClick={() => onSelectHistory(history)}
+              rightSlot={
+                <DeleteBtn
+                  disabled={!hid || isDeleting}
+                  onClick={() => onDeleteHistory(history)}
+                />
+              }
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
