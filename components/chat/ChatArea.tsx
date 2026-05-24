@@ -238,7 +238,9 @@ const AudioPlayer = ({ src, isOwn }: { src: string; isOwn: boolean }) => {
           <span className={clsx(isOwn ? "text-blue-100" : "text-ig-secondary")}>
             {isPlaying ? "Playing" : "Voice message"}
           </span>
-          <span className={clsx(isOwn ? "text-blue-100/80" : "text-ig-secondary")}>
+          <span
+            className={clsx(isOwn ? "text-blue-100/80" : "text-ig-secondary")}
+          >
             {audioRef.current && audioRef.current.duration
               ? `${Math.floor(audioRef.current.currentTime / 60)}:${(
                   Math.floor(audioRef.current.currentTime) % 60
@@ -457,7 +459,8 @@ export function ChatArea({
   const currentChat = chats.find((c: any) => c.chatId === chatId);
 
   const [sendMessage, { isLoading: isSending }] = useSendMessageMutation();
-  const [deleteMessage, { isLoading: isDeletingMessage }] = useDeleteMessageMutation();
+  const [deleteMessage, { isLoading: isDeletingMessage }] =
+    useDeleteMessageMutation();
 
   const checkIsOwnMessage = (msg: any) => {
     if (!msg || !msg.userId || !currentUserId) return false;
@@ -804,10 +807,22 @@ export function ChatArea({
               const chronoMessages = messages.toReversed();
               return chronoMessages.map((msg: any, index: number) => {
                 const isOwn = checkIsOwnMessage(msg);
-                const fileUrl = msg.file;
-                const hasText = !!msg.messageText;
+                let fileUrl = msg.file;
+                let messageText = msg.messageText || "";
+                let forceVideo = false;
+
+                const videoUrlMatch = messageText.match(/\|videoUrl:(.+?)\|/);
+                if (videoUrlMatch) {
+                  if (!fileUrl) {
+                    fileUrl = videoUrlMatch[1];
+                  }
+                  messageText = messageText.replace(videoUrlMatch[0], "").trim();
+                  forceVideo = true;
+                }
+
+                const hasText = !!messageText;
                 const isAudio = fileUrl && isAudioFile(fileUrl);
-                const isVideo = fileUrl && isVideoFile(fileUrl);
+                const isVideo = forceVideo || (fileUrl && isVideoFile(fileUrl));
                 const isImage = fileUrl && !isAudio && !isVideo;
 
                 // Dynamic border logic based on sequence of messages from the same sender
@@ -946,7 +961,7 @@ export function ChatArea({
                         </div>
                       )}
 
-                      {msg.messageText && (
+                      {messageText && (
                         <div
                           className={clsx(
                             "text-[15px] leading-relaxed",
@@ -957,7 +972,7 @@ export function ChatArea({
                                 : "px-4 pt-2.5 pb-1",
                           )}
                         >
-                          {formatMessageText(msg.messageText, isOwn)}
+                          {formatMessageText(messageText, isOwn)}
                         </div>
                       )}
 
@@ -983,13 +998,15 @@ export function ChatArea({
                       )}
                     </div>
                     {/* Minimalistic Delete Button */}
-                    <button
-                      onClick={() => handleDeleteMessage(msg.messageId)}
-                      className="block hidden lg:group-hover:block p-1.5 hover:bg-zinc-800/60 rounded-lg text-ig-secondary hover:text-red-500 transition-all self-center shrink-0 cursor-pointer"
-                      title="Delete message"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {isOwn && (
+                      <button
+                        onClick={() => handleDeleteMessage(msg.messageId)}
+                        className="p-1.5 ml-2 text-zinc-500/40 hover:text-red-500 hover:bg-zinc-800/60 rounded-lg transition-all self-center shrink-0 cursor-pointer focus:outline-none"
+                        title="Delete message"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 );
               });
@@ -1002,7 +1019,7 @@ export function ChatArea({
       {showScrollButton && (
         <button
           onClick={scrollToBottom}
-          className="absolute bottom-[88px] right-6 z-40 bg-ig-sidebar-hover hover:bg-zinc-700 text-ig-fg p-2.5 rounded-full shadow-lg border border-zinc-700/50 transition-all cursor-pointer"
+          className="absolute bottom-[88px] right-6 z-40 bg-ig-sidebar-hover bg-zinc-700 text-ig-fg p-2.5 rounded-full shadow-lg border border-zinc-700/50 transition-all cursor-pointer"
         >
           <ChevronDown className="w-5 h-5" />
         </button>
@@ -1213,10 +1230,11 @@ export function ChatArea({
                 Unsend message?
               </h3>
               <p className="text-ig-secondary text-xs leading-relaxed px-2">
-                Unsending will remove the message for everyone. People may have already seen it.
+                Unsending will remove the message for everyone. People may have
+                already seen it.
               </p>
             </div>
-            
+
             <div className="flex flex-col border-t border-ig-border">
               <button
                 onClick={handleConfirmDeleteMessage}
