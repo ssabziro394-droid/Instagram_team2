@@ -7,6 +7,7 @@ import type {
   SearchHistory,
   SearchUser,
   SearchUsersQuery,
+  HistoryItem,
 } from "@/types/search";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -64,13 +65,8 @@ function searchParams(query?: SearchUsersQuery | string | void) {
   });
 }
 
-function historyIdParams(request: DeleteSearchHistoryRequest | string | number) {
-  if (typeof request === "object" && request !== null) {
-    const id = request.searchHistoryId ?? request.id;
-    return id === undefined || id === null ? undefined : { id };
-  }
-  return { id: request };
-}
+const SEARCH_HISTORY_BASE_URL =
+  process.env.NEXT_PUBLIC_SEARCH_HISTORY_API_URL || "http://localhost:5000/search/history";
 
 export const searchApi = baseApi.injectEndpoints({
   overrideExisting: true,
@@ -84,91 +80,96 @@ export const searchApi = baseApi.injectEndpoints({
       providesTags: [{ type: "User", id: "SEARCH_USERS" }],
     }),
     addSearchHistory: builder.mutation<
-      ApiMessageResponse,
+      HistoryItem,
       string | AddSearchHistoryRequest
     >({
       query: (arg) => {
         const text = typeof arg === "string" ? arg : arg.searchText ?? arg.query ?? "";
         return {
-          url: "User/add-search-history",
+          url: `${SEARCH_HISTORY_BASE_URL}`,
           method: "POST",
-          params: { Text: text },
+          body: { type: "query", query: text },
         };
       },
-      transformResponse: (response: unknown) =>
-        unwrapResponse<ApiMessageResponse>(response),
       invalidatesTags: [{ type: "User", id: "SEARCH_HISTORY" }],
     }),
-    getSearchHistories: builder.query<SearchHistory[], void>({
-      query: () => "User/get-search-histories",
+    getSearchHistories: builder.query<HistoryItem[], void>({
+      query: () => `${SEARCH_HISTORY_BASE_URL}`,
       transformResponse: (response: unknown) =>
-        unwrapList<SearchHistory>(response),
+        unwrapList<HistoryItem>(response),
       providesTags: [{ type: "User", id: "SEARCH_HISTORY" }],
     }),
     deleteSearchHistory: builder.mutation<
-      ApiMessageResponse,
+      { message: string; id: string },
       string | number | DeleteSearchHistoryRequest
     >({
-      query: (arg) => ({
-        url: "User/delete-search-history",
-        method: "DELETE",
-        params: historyIdParams(arg),
-      }),
-      transformResponse: (response: unknown) =>
-        unwrapResponse<ApiMessageResponse>(response),
+      query: (arg) => {
+        let id = "";
+        if (typeof arg === "object" && arg !== null) {
+          id = String(arg.searchHistoryId ?? arg.id ?? "");
+        } else {
+          id = String(arg);
+        }
+        return {
+          url: `${SEARCH_HISTORY_BASE_URL}/${id}`,
+          method: "DELETE",
+        };
+      },
       invalidatesTags: [{ type: "User", id: "SEARCH_HISTORY" }],
     }),
-    deleteSearchHistories: builder.mutation<ApiMessageResponse, void>({
+    deleteSearchHistories: builder.mutation<{ message: string }, void>({
       query: () => ({
-        url: "User/delete-search-histories",
+        url: `${SEARCH_HISTORY_BASE_URL}`,
         method: "DELETE",
       }),
-      transformResponse: (response: unknown) =>
-        unwrapResponse<ApiMessageResponse>(response),
       invalidatesTags: [{ type: "User", id: "SEARCH_HISTORY" }],
     }),
     addUserSearchHistory: builder.mutation<
-      ApiMessageResponse,
-      string | AddUserSearchHistoryRequest
+      HistoryItem,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      any
     >({
       query: (arg) => {
-        const userSearchId = typeof arg === "string" ? arg : arg.searchedUserId ?? arg.userId ?? "";
+        if (arg && arg.type === "user") {
+          return {
+            url: `${SEARCH_HISTORY_BASE_URL}`,
+            method: "POST",
+            body: arg,
+          };
+        }
+        const userObj = arg.user ?? arg;
         return {
-          url: "User/add-user-search-history",
+          url: `${SEARCH_HISTORY_BASE_URL}`,
           method: "POST",
-          params: { UserSearchId: userSearchId },
+          body: {
+            type: "user",
+            user: userObj,
+          },
         };
       },
-      transformResponse: (response: unknown) =>
-        unwrapResponse<ApiMessageResponse>(response),
       invalidatesTags: [{ type: "User", id: "SEARCH_HISTORY" }],
     }),
-    getUserSearchHistories: builder.query<SearchHistory[], void>({
-      query: () => "User/get-user-search-histories",
+    getUserSearchHistories: builder.query<HistoryItem[], void>({
+      query: () => `${SEARCH_HISTORY_BASE_URL}`,
       transformResponse: (response: unknown) =>
-        unwrapList<SearchHistory>(response),
+        unwrapList<HistoryItem>(response),
       providesTags: [{ type: "User", id: "SEARCH_HISTORY" }],
     }),
     deleteUserSearchHistory: builder.mutation<
-      ApiMessageResponse,
+      { message: string; id: string },
       string | number
     >({
       query: (id) => ({
-        url: "User/delete-user-search-history",
+        url: `${SEARCH_HISTORY_BASE_URL}/${id}`,
         method: "DELETE",
-        params: { id },
       }),
-      transformResponse: (response: unknown) =>
-        unwrapResponse<ApiMessageResponse>(response),
       invalidatesTags: [{ type: "User", id: "SEARCH_HISTORY" }],
     }),
-    deleteUserSearchHistories: builder.mutation<ApiMessageResponse, void>({
+    deleteUserSearchHistories: builder.mutation<{ message: string }, void>({
       query: () => ({
-        url: "User/delete-user-search-histories",
+        url: `${SEARCH_HISTORY_BASE_URL}`,
         method: "DELETE",
       }),
-      transformResponse: (response: unknown) =>
-        unwrapResponse<ApiMessageResponse>(response),
       invalidatesTags: [{ type: "User", id: "SEARCH_HISTORY" }],
     }),
   }),

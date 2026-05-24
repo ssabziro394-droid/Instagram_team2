@@ -79,7 +79,7 @@ function mapSwaggerProfile(profile: UserProfileSwaggerDto): UserProfile {
     dob: profile.dob,
     occupation: profile.occupation,
     // isFollowing comes separately from getIsFollowUserProfileById
-    isFollowing: (profile as any).isFollowing ?? false,
+    isFollowing: (profile as unknown as Record<string, unknown>).isFollowing === true,
   };
 }
 
@@ -267,15 +267,34 @@ export const profileApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: unknown) => {
         console.log("[isFollow API raw response]:", JSON.stringify(response));
-        // API may return: { data: true }, { data: false }, true, false, "true", "false"
-        let val: unknown = response;
-        if (typeof val === "object" && val !== null) {
-          val = (val as any).data ?? (val as any).result ?? (val as any).value ?? val;
+        
+        if (response && typeof response === "object") {
+          const record = response as Record<string, unknown>;
+          // If the response is wrapped in { data: { isSubscriber: ... } }
+          if (record.data && typeof record.data === "object") {
+            const dataObj = record.data as Record<string, unknown>;
+            const followStatus =
+              dataObj.isSubscriber ??
+              dataObj.isFollowing ??
+              dataObj.isFollowed ??
+              dataObj.subscribed;
+            if (followStatus !== undefined) return Boolean(followStatus);
+          }
+          
+          // Fallback if data is directly the object containing isSubscriber
+          const followStatusDirect =
+            record.isSubscriber ??
+            record.isFollowing ??
+            record.isFollowed ??
+            record.subscribed;
+          if (followStatusDirect !== undefined) return Boolean(followStatusDirect);
+          
+          const unwrapped = record.data ?? record.result ?? record.value ?? response;
+          if (unwrapped === "true" || unwrapped === true || unwrapped === 1) return true;
+          if (unwrapped === "false" || unwrapped === false || unwrapped === 0 || unwrapped === null) return false;
         }
-        // Handle string "true"/"false"
-        if (val === "true" || val === true || val === 1) return true;
-        if (val === "false" || val === false || val === 0 || val === null) return false;
-        return Boolean(val);
+        
+        return false;
       },
       providesTags: (_result, _error, id) => [{ type: "User" as const, id: `FOLLOW_${id}` }],
     }),

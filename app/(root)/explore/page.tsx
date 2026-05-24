@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import SearchBar from "@/components/search/SearchBar";
 import SearchResults from "@/components/search/SearchResults";
@@ -11,34 +11,22 @@ import {
   useDeleteSearchHistoryMutation,
   useGetSearchHistoriesQuery,
   useGetSearchUsersQuery,
-  useGetUserSearchHistoriesQuery,
-  useDeleteUserSearchHistoryMutation,
-  useDeleteUserSearchHistoriesMutation,
 } from "@/store/api/searchApi";
-import type { ProfileId } from "@/types/profile";
-import type { SearchHistory, SearchUser } from "@/types/search";
+import type { HistoryItem, HistoryUser, SearchUser } from "@/types/search";
 
-// ---------------------------------------------------------------------------
-// Pure helpers — no side-effects, easy to unit-test
-// ---------------------------------------------------------------------------
-
-function toIdString(id?: ProfileId): string {
+function toIdString(id: SearchUser["id"] | SearchUser["userId"] | undefined) {
   return id === undefined || id === null ? "" : String(id);
 }
 
-function getUserId(user?: SearchUser): string {
+function getUserId(user?: SearchUser) {
   return toIdString(user?.id ?? user?.userId);
 }
 
-function getHistoryId(history: SearchHistory): string {
-  return toIdString(history.searchHistoryId ?? history.id);
-}
-
-function getUsername(user?: SearchUser): string {
+function getUsername(user?: SearchUser) {
   return user?.username ?? user?.userName ?? "";
 }
 
-function getDisplayName(user?: SearchUser): string {
+function getDisplayName(user?: SearchUser) {
   return (
     user?.fullName ??
     user?.name ??
@@ -46,23 +34,11 @@ function getDisplayName(user?: SearchUser): string {
   );
 }
 
-function getHistoryUser(history: SearchHistory): SearchUser {
-  return (
-    history.user ??
-    history.searchedUser ?? {
-      id: history.searchedUserId ?? history.userId,
-      username: history.username ?? history.userName ?? history.query,
-      userName: history.userName,
-      fullName: history.fullName ?? history.searchText,
-    }
-  );
-}
-
-function getProfileSlug(user: SearchUser): string {
+function getProfileSlug(user: SearchUser) {
   return getUsername(user) || getUserId(user);
 }
 
-function matchesQuery(user: SearchUser, query: string): boolean {
+function matchesQuery(user: SearchUser, query: string) {
   const normalizedQuery = query.toLowerCase();
   const searchableText = [getUsername(user), getDisplayName(user), user.bio]
     .filter(Boolean)
@@ -72,15 +48,29 @@ function matchesQuery(user: SearchUser, query: string): boolean {
   return searchableText.includes(normalizedQuery);
 }
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+function mapUserToHistory(user: SearchUser): HistoryUser {
+  const id = getUserId(user);
+  const username = getUsername(user);
+  const fullname = getDisplayName(user) || "";
+  const avatar =
+    user.avatar ??
+    user.avatarUrl ??
+    user.userImage ??
+    user.image ??
+    user.imageUrl ??
+    null;
+  const followers = user.followersCount ?? user.subscribersCount ?? 0;
+  const isVerified = user.isVerified ?? user.verified ?? user.isFamous ?? false;
 
-type CombinedHistory = SearchHistory & { isText: boolean };
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+  return {
+    id,
+    username,
+    fullname,
+    avatar: avatar ? String(avatar) : null,
+    followers: Number(followers),
+    isVerified: Boolean(isVerified),
+  };
+}
 
 export default function ExplorePage() {
   const router = useRouter();
@@ -88,171 +78,218 @@ export default function ExplorePage() {
   const [query, setQuery] = useState("");
   const [searchInputValue, setSearchInputValue] = useState("");
   const [deletingHistoryId, setDeletingHistoryId] = useState("");
-
-  // ── API hooks ──────────────────────────────────────────────────────────────
+  const [localHistories, setLocalHistories] = useState<HistoryItem[]>([]);
 
   const usersQuery = useGetSearchUsersQuery(
     { search: query, pageSize: 20 },
     { skip: query.length === 0 }
   );
-
-  // Both history feeds are always fetched; the UI decides what to show.
-  const textHistoriesQuery = useGetSearchHistoriesQuery();
-  const userHistoriesQuery = useGetUserSearchHistoriesQuery();
+  const historiesQuery = useGetSearchHistoriesQuery();
 
   const [addSearchHistory] = useAddSearchHistoryMutation();
   const [addUserSearchHistory] = useAddUserSearchHistoryMutation();
   const [deleteSearchHistory] = useDeleteSearchHistoryMutation();
-  const [deleteUserSearchHistory] = useDeleteUserSearchHistoryMutation();
   const [deleteSearchHistories] = useDeleteSearchHistoriesMutation();
-  const [deleteUserSearchHistories] = useDeleteUserSearchHistoriesMutation();
 
-  // ── Derived data ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!historiesQuery.data) {
+      return;
+    }
 
-  const searchResults: SearchUser[] = useMemo(() => {
-    const users = usersQuery.data ?? [];
-    if (!query) return users;
-    return users.filter((u) => matchesQuery(u, query));
-  }, [usersQuery.data, query]);
+    const timer = window.setTimeout(() => {
+      setLocalHistories(historiesQuery.data ?? []);
+    }, 0);
 
-  /**
-   * Merges text-search histories and user-search histories into a single
-   * chronologically-sorted list, newest first.
-   */
-  const combinedHistories: CombinedHistory[] = useMemo(() => {
-    const textItems: CombinedHistory[] = (textHistoriesQuery.data ?? []).map(
-      (h) => ({ ...h, isText: true })
-    );
-    const userItems: CombinedHistory[] = (userHistoriesQuery.data ?? []).map(
-      (h) => ({ ...h, isText: false })
-    );
+    return () => window.clearTimeout(timer);
+  }, [historiesQuery.data]);
 
-    return [...textItems, ...userItems].sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+  const users = useMemo(() => {
+    const source = usersQuery.data ?? [];
+    if (!query) {
+      return source;
+    }
 
-      if (dateA && dateB) return dateB - dateA;
-
-      // Fallback to numeric id comparison when timestamps are absent.
-      return (Number(b.id) || 0) - (Number(a.id) || 0);
-    });
-  }, [textHistoriesQuery.data, userHistoriesQuery.data]);
-
-  // ── Navigation helper ──────────────────────────────────────────────────────
-
-  const navigateToUser = useCallback(
-    (user: SearchUser) => {
-      router.push(`/profile/${getProfileSlug(user)}`);
-    },
-    [router]
-  );
-
-  // ── Event handlers ─────────────────────────────────────────────────────────
+    const filtered = source.filter((user) => matchesQuery(user, query));
+    return filtered.length > 0 ? filtered : source;
+  }, [query, usersQuery.data]);
 
   const handleDebouncedChange = useCallback((value: string) => {
     setQuery(value);
     setSearchInputValue(value);
   }, []);
 
-  const handleUserClick = useCallback(
-    async (user: SearchUser) => {
+  const navigateToUser = useCallback(
+    (user: SearchUser) => {
+      const slug = getProfileSlug(user);
       const userId = getUserId(user);
-      try {
-        if (userId) {
-          await addUserSearchHistory(userId).unwrap();
-        }
-      } catch {
-        // Navigation should still work if history persistence fails.
+
+      if (!slug) {
+        return;
       }
+
+      const queryParam = userId ? `?id=${encodeURIComponent(userId)}` : "";
+      router.push(`/${encodeURIComponent(slug)}${queryParam}`);
+    },
+    [router]
+  );
+
+  const handleSelectUser = useCallback(
+    async (user: SearchUser) => {
+      const mapped = mapUserToHistory(user);
+
+      if (!mapped.id) {
+        navigateToUser(user);
+        return;
+      }
+
+      setLocalHistories((prev) => {
+        const filtered = prev.filter(
+          (item) => !(item.type === "user" && item.user?.id === mapped.id)
+        );
+        const newItem: HistoryItem = {
+          id: `temp-user-${Date.now()}`,
+          type: "user",
+          user: mapped,
+          createdAt: Math.floor(Date.now() / 1000),
+        };
+        return [newItem, ...filtered];
+      });
+
+      try {
+        await addUserSearchHistory({ type: "user", user: mapped }).unwrap();
+      } catch (error) {
+        console.error("Failed to add user to search history backend:", error);
+      }
+
       navigateToUser(user);
     },
     [addUserSearchHistory, navigateToUser]
   );
 
   const handleSelectHistory = useCallback(
-    async (history: CombinedHistory) => {
-      if (history.isText) {
-        const text = history.text ?? history.searchText ?? history.query ?? "";
+    async (item: HistoryItem) => {
+      if (item.type === "query") {
+        const text = item.query ?? "";
+
         setQuery(text);
         setSearchInputValue(text);
+        setLocalHistories((prev) => {
+          const filtered = prev.filter(
+            (history) => !(history.type === "query" && history.query === text)
+          );
+          const newItem: HistoryItem = {
+            id: `temp-query-${Date.now()}`,
+            type: "query",
+            query: text,
+            createdAt: Math.floor(Date.now() / 1000),
+          };
+          return [newItem, ...filtered];
+        });
+
         try {
           await addSearchHistory(text).unwrap();
-        } catch {
-          // Ignore — UI already reflects the selection.
+        } catch (error) {
+          console.error("Failed to add query to search history backend:", error);
         }
-      } else {
-        const user = getHistoryUser(history);
-        const userId = getUserId(user);
+
+        return;
+      }
+
+      if (item.type === "user" && item.user) {
+        const user = item.user;
+
+        setLocalHistories((prev) => {
+          const filtered = prev.filter(
+            (history) => !(history.type === "user" && history.user?.id === user.id)
+          );
+          const newItem: HistoryItem = {
+            id: `temp-user-${Date.now()}`,
+            type: "user",
+            user,
+            createdAt: Math.floor(Date.now() / 1000),
+          };
+          return [newItem, ...filtered];
+        });
+
         try {
-          if (userId) {
-            await addUserSearchHistory(userId).unwrap();
-          }
-        } catch {
-          // Ignore — navigate regardless.
+          await addUserSearchHistory({ type: "user", user }).unwrap();
+        } catch (error) {
+          console.error("Failed to update user history timestamp backend:", error);
         }
-        navigateToUser(user);
+
+        const slug = user.username || user.id;
+        if (slug) {
+          const queryParam = user.id ? `?id=${encodeURIComponent(user.id)}` : "";
+          router.push(`/${encodeURIComponent(slug)}${queryParam}`);
+        }
       }
     },
-    [addSearchHistory, addUserSearchHistory, navigateToUser]
+    [addSearchHistory, addUserSearchHistory, router]
   );
 
   const handleDeleteHistory = useCallback(
-    async (history: CombinedHistory) => {
-      const historyId = getHistoryId(history);
-      if (!historyId) return;
+    async (item: HistoryItem) => {
+      const id = item.id;
+      if (!id) {
+        return;
+      }
 
-      setDeletingHistoryId(historyId);
+      setLocalHistories((prev) => prev.filter((history) => history.id !== id));
+      setDeletingHistoryId(id);
+
       try {
-        if (history.isText) {
-          await deleteSearchHistory(historyId).unwrap();
-        } else {
-          await deleteUserSearchHistory(historyId).unwrap();
-        }
-      } catch {
-        // Keep the current list visible if the backend cannot delete the item.
+        await deleteSearchHistory(id).unwrap();
+      } catch (error) {
+        console.error("Failed to delete history item backend:", error);
       } finally {
         setDeletingHistoryId("");
       }
     },
-    [deleteSearchHistory, deleteUserSearchHistory]
+    [deleteSearchHistory]
   );
 
-  const handleClearAllHistory = useCallback(async () => {
+  const handleClearHistory = useCallback(async () => {
+    setLocalHistories([]);
+
     try {
-      await Promise.all([
-        deleteSearchHistories().unwrap(),
-        deleteUserSearchHistories().unwrap(),
-      ]);
-    } catch {
-      // Silently ignore — the UI will re-sync on the next fetch.
+      await deleteSearchHistories().unwrap();
+    } catch (error) {
+      console.error("Failed to clear search histories backend:", error);
     }
-  }, [deleteSearchHistories, deleteUserSearchHistories]);
+  }, [deleteSearchHistories]);
 
   const handleSearchSubmit = useCallback(
     async (value: string) => {
-      const trimmed = value.trim();
-      if (!trimmed) return;
+      const text = value.trim();
+      if (!text) {
+        return;
+      }
+
+      setLocalHistories((prev) => {
+        const filtered = prev.filter(
+          (item) => !(item.type === "query" && item.query === text)
+        );
+        const newItem: HistoryItem = {
+          id: `temp-query-${Date.now()}`,
+          type: "query",
+          query: text,
+          createdAt: Math.floor(Date.now() / 1000),
+        };
+        return [newItem, ...filtered];
+      });
+
       try {
-        await addSearchHistory(trimmed).unwrap();
-      } catch {
-        // Ignore.
+        await addSearchHistory(text).unwrap();
+      } catch (error) {
+        console.error("Failed to save search text query on submit:", error);
       }
     },
     [addSearchHistory]
   );
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
-  const isLoading =
-    usersQuery.isLoading ||
-    usersQuery.isFetching ||
-    textHistoriesQuery.isLoading ||
-    userHistoriesQuery.isLoading;
-
   return (
     <div className="flex min-h-full flex-col bg-black text-white">
-      {/* Top bar */}
-      <div className="sticky top-0 z-10 border-b border-zinc-900 bg-black px-4 py-3 flex items-center gap-3">
+      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-zinc-900 bg-black px-4 py-3">
         <SearchBar
           value={searchInputValue}
           onDebouncedChange={handleDebouncedChange}
@@ -261,19 +298,22 @@ export default function ExplorePage() {
         />
       </div>
 
-      {/* Results */}
       <div className="flex-1">
         <SearchResults
           query={query}
-          users={searchResults}
-          histories={combinedHistories}
-          isLoading={isLoading}
+          users={users}
+          histories={localHistories}
+          isLoading={
+            usersQuery.isLoading ||
+            usersQuery.isFetching ||
+            historiesQuery.isLoading
+          }
           isError={usersQuery.isError}
           deletingHistoryId={deletingHistoryId}
-          onSelectUser={handleUserClick}
+          onSelectUser={handleSelectUser}
           onSelectHistory={handleSelectHistory}
           onDeleteHistory={handleDeleteHistory}
-          onClearHistory={handleClearAllHistory}
+          onClearHistory={handleClearHistory}
         />
       </div>
     </div>
