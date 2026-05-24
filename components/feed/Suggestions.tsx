@@ -9,9 +9,11 @@ import { useGetUsersQuery } from "@/store/api/searchApi";
 import { 
   useProfileGetSubscriptionsQuery,
   useProfileFollowUserMutation,
-  useProfileUnfollowUserMutation
+  useProfileUnfollowUserMutation,
+  useGetMyProfileQuery
 } from "@/store/api/profileApi";
 import { Loader2, ChevronDown } from "lucide-react";
+import Link from "next/link";
 
 export default function Suggestions() {
   const token = useSelector((state: RootState) => state.auth.token);
@@ -36,8 +38,15 @@ export default function Suggestions() {
   const [initialSuggestions, setInitialSuggestions] = useState<any[]>([]);
   const [showAll, setShowAll] = useState(false);
 
-  const allUsers = usersResponse || [];
+  // Handle both legacy array and new paginated object response
+  const allUsers: any[] = Array.isArray(usersResponse)
+    ? usersResponse
+    : (usersResponse as any)?.data ?? [];
   
+  // Use getMyProfile for up-to-date avatar (reflects profile picture changes instantly)
+  const { data: myProfile } = useGetMyProfileQuery();
+  const currentUserAvatar = myProfile?.image ?? myProfile?.avatar ?? myProfile?.avatarUrl ?? myProfile?.imageUrl ?? null;
+
   // Extract IDs of users we are following from the subscriptions response
   const followingIds = subscriptionsResponse?.map((u: any) => {
     if (typeof u === 'string') return u;
@@ -45,8 +54,7 @@ export default function Suggestions() {
     return u.followingUserId || u.subscriberId || u.userId || u.id;
   }) || [];
 
-  const currentUserData = allUsers.find((u: any) => u.userId === currentUser?.sid || u.id === currentUser?.sid);
-  const currentUserAvatar = currentUserData?.userImage || currentUserData?.avatar || null;
+  // currentUserData still needed for filtering, but avatar comes from myProfile
 
   // Filter out the current user and users already followed ONLY ONCE to keep them in the list after follow
   useEffect(() => {
@@ -81,7 +89,7 @@ export default function Suggestions() {
       {currentUser && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900">
+            <Link href={`/${currentUser.name.split("@")[0]}`} className="w-11 h-11 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900 block hover:opacity-80 transition-opacity">
               <img
                 src={getFileUrl(currentUserAvatar, "avatar")}
                 alt={currentUser.name}
@@ -90,11 +98,11 @@ export default function Suggestions() {
                   e.currentTarget.src = getFileUrl(null, "avatar");
                 }}
               />
-            </div>
+            </Link>
             <div className="flex flex-col">
-              <span className="font-semibold text-sm text-zinc-100 hover:underline cursor-pointer">
+              <Link href={`/${currentUser.name.split("@")[0]}`} className="font-semibold text-sm text-zinc-100 hover:text-zinc-300 transition-colors inline-block">
                 {currentUser.name.split("@")[0]}
-              </span>
+              </Link>
               <span className="text-xs text-zinc-500 truncate max-w-[150px]">
                 {currentUser.name}
               </span>
@@ -132,7 +140,7 @@ export default function Suggestions() {
             return (
               <div key={uId} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full overflow-hidden border border-zinc-850 bg-zinc-900">
+                  <Link href={`/${user.userName || "user"}`} className="w-8 h-8 rounded-full overflow-hidden border border-zinc-850 bg-zinc-900 block hover:opacity-80 transition-opacity">
                       <img
                         src={getFileUrl(user.userImage || user.avatar, "avatar")}
                         alt={user.userName}
@@ -141,11 +149,11 @@ export default function Suggestions() {
                           e.currentTarget.src = getFileUrl(null, "avatar");
                         }}
                       />
-                  </div>
+                  </Link>
                   <div className="flex flex-col">
-                    <span className="font-semibold text-xs text-zinc-200 hover:underline cursor-pointer truncate max-w-[120px]">
+                    <Link href={`/${user.userName || "user"}`} className="font-semibold text-xs text-zinc-200 hover:text-zinc-400 transition-colors truncate max-w-[120px] inline-block">
                       {user.userName?.split("@")[0] || "User"}
-                    </span>
+                    </Link>
                     <span className="text-[10px] text-zinc-500">
                       {isFollowing ? "Following" : "Suggested for you"}
                     </span>

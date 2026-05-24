@@ -229,6 +229,9 @@ export const profileApi = baseApi.injectEndpoints({
           url: "UserProfile/update-user-profile",
           method: "PUT",
           body: {
+            userName: body.userName ?? body.username ?? "",
+            firstName: body.firstName ?? "",
+            lastName: body.lastName ?? "",
             about: body.about ?? body.bio ?? "",
             gender: genderId,
           },
@@ -246,10 +249,16 @@ export const profileApi = baseApi.injectEndpoints({
         url: "UserProfile/update-user-image-profile",
         method: "PUT",
         body: imageProfileBody(request),
+        formData: true,
       }),
       transformResponse: (response: unknown) =>
         unwrapResponse<UserProfile>(response),
-      invalidatesTags: [{ type: "User", id: "ME" }],
+      invalidatesTags: [
+        { type: "User", id: "ME" },
+        { type: "Post", id: "LIST" },
+        { type: "Post", id: "FOLLOWING_LIST" },
+        { type: "Post", id: "MY_LIST" }
+      ],
     }),
     deleteUserImageProfile: builder.mutation<ApiMessageResponse, void>({
       query: () => ({

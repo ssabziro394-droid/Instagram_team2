@@ -254,7 +254,7 @@ export default function CommentsSheet({
                         {/* Avatar */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={comment.avatarUrl}
+                          src={comment.avatarUrl || "https://api.dicebear.com/7.x/adventurer/svg?seed=fallback"}
                           alt={comment.username}
                           className="w-8 h-8 rounded-full object-cover border border-ig-border select-none"
                         />
@@ -336,7 +336,7 @@ export default function CommentsSheet({
                                     {/* Small Avatar */}
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
-                                      src={reply.avatarUrl}
+                                      src={reply.avatarUrl || "https://api.dicebear.com/7.x/adventurer/svg?seed=fallback"}
                                       alt={reply.username}
                                       className="w-6 h-6 rounded-full object-cover border border-zinc-850 select-none"
                                     />

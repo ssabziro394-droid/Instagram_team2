@@ -127,10 +127,10 @@ function HistoryTextIcon() {
 function SkeletonRow() {
   return (
     <div className="flex items-center gap-3 px-4 py-2.5">
-      <div className="w-11 h-11 rounded-full bg-zinc-800 animate-pulse shrink-0" />
+      <div className="w-11 h-11 rounded-full bg-ig-sidebar-hover animate-pulse shrink-0" />
       <div className="flex-1 flex flex-col gap-2">
-        <div className="h-3.5 w-28 rounded bg-zinc-800 animate-pulse" />
-        <div className="h-3 w-40 rounded bg-zinc-800 animate-pulse" />
+        <div className="h-3.5 w-28 rounded bg-ig-sidebar-hover animate-pulse" />
+        <div className="h-3 w-40 rounded bg-ig-sidebar-hover animate-pulse" />
       </div>
     </div>
   );
@@ -160,7 +160,7 @@ function UserRow({
     false;
 
   return (
-    <div className="flex items-center gap-1 hover:bg-zinc-900 transition rounded-none">
+    <div className="flex items-center gap-1 hover:bg-ig-sidebar-hover transition rounded-none">
       <button
         type="button"
         onClick={onClick}
@@ -169,13 +169,13 @@ function UserRow({
         <Avatar user={user} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
-            <span className="text-sm font-semibold text-white truncate">{username}</span>
+            <span className="text-sm font-semibold text-ig-fg truncate">{username}</span>
             {isVerified && (
-              <BadgeCheck className="h-3.5 w-3.5 fill-sky-500 text-black shrink-0" />
+              <BadgeCheck className="h-3.5 w-3.5 fill-sky-500 text-ig-bg shrink-0" />
             )}
           </div>
           {subline && (
-            <span className="text-xs text-zinc-500 block truncate mt-0.5">{subline}</span>
+            <span className="text-xs text-ig-secondary block truncate mt-0.5">{subline}</span>
           )}
         </div>
       </button>
@@ -235,15 +235,15 @@ export default function SearchResults({
 
         {!isLoading && isError && (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <Search className="h-8 w-8 text-zinc-600" />
-            <p className="text-sm text-zinc-500">Поиск временно недоступен</p>
+            <Search className="h-8 w-8 text-ig-secondary" />
+            <p className="text-sm text-ig-secondary">Поиск временно недоступен</p>
           </div>
         )}
 
         {!isLoading && !isError && users.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <p className="text-sm font-semibold text-white">Результаты не найдены</p>
-            <p className="text-sm text-zinc-500">Поиск: «{query}»</p>
+            <p className="text-sm font-semibold text-ig-fg">Результаты не найдены</p>
+            <p className="text-sm text-ig-secondary">Поиск: «{query}»</p>
           </div>
         )}
 
@@ -264,8 +264,8 @@ export default function SearchResults({
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3">
-        <span className="text-sm font-semibold text-white">Недавнее</span>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-ig-border">
+        <span className="text-sm font-semibold text-ig-fg">Недавнее</span>
         {histories.length > 0 && (
           <button
             type="button"
@@ -279,7 +279,7 @@ export default function SearchResults({
 
       {histories.length === 0 && (
         <div className="flex flex-col items-center gap-2 py-16 text-center">
-          <p className="text-sm text-zinc-500">Нет недавних запросов</p>
+          <p className="text-sm text-ig-secondary">Нет недавних запросов</p>
         </div>
       )}
 

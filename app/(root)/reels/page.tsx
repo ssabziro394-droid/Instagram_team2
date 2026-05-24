@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useGetReelsQuery } from "@/store/api/reelsApi";
+import { useGetReelsQuery, useLikePostMutation, useAddPostFavoriteMutation, useAddCommentMutation } from "@/store/api/reelsApi";
 import ReelCard from "@/components/reels/ReelCard";
 import ReelSkeleton from "@/components/reels/ReelSkeleton";
 import { Reel, Comment } from "@/components/reels/types";
@@ -10,7 +10,6 @@ import { WifiOff, Film, RefreshCw, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function ReelsPage() {
-  // 1. Fetch from Swagger endpoint via RTK Query
   const { data: reelsFromApi, isLoading, isError, error, refetch } = useGetReelsQuery({ pageNumber: 1, pageSize: 10 });
 
   // 2. Local state to manage live interactive edits (likes, saves, follows, comments) without database mutations
@@ -22,6 +21,10 @@ export default function ReelsPage() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  const [likePost] = useLikePostMutation();
+  const [addPostFavorite] = useAddPostFavoriteMutation();
+  const [addComment] = useAddCommentMutation();
 
   // Check if unauthorized (401 / 403) or generic error
   const isUnauthorized = 
@@ -43,6 +46,8 @@ export default function ReelsPage() {
     let activeReels: Reel[] = [];
     if (reelsFromApi && reelsFromApi.length > 0) {
       activeReels = reelsFromApi;
+    } else if (!isLoading) {
+      activeReels = MOCK_REELS; // Fallback to mock data if empty!
     }
 
     setReelsList(activeReels);
@@ -93,7 +98,8 @@ export default function ReelsPage() {
   }, [reelsList]);
 
   // 3. Client Simulation Interactions (Zero-impact mutations)
-  const handleLike = (reelId: string) => {
+  const handleLike = async (reelId: string) => {
+    // Optimistic UI Update
     setReelsList((prevList) =>
       prevList.map((reel) => {
         if (reel.id === reelId) {
@@ -107,9 +113,16 @@ export default function ReelsPage() {
         return reel;
       })
     );
+
+    try {
+      await likePost({ postId: Number(reelId) }).unwrap();
+    } catch (error) {
+      console.error("Failed to like reel:", error);
+    }
   };
 
-  const handleSave = (reelId: string) => {
+  const handleSave = async (reelId: string) => {
+    // Optimistic UI Update
     setReelsList((prevList) =>
       prevList.map((reel) => {
         if (reel.id === reelId) {
@@ -121,6 +134,12 @@ export default function ReelsPage() {
         return reel;
       })
     );
+
+    try {
+      await addPostFavorite({ postId: Number(reelId) }).unwrap();
+    } catch (error) {
+      console.error("Failed to save reel:", error);
+    }
   };
 
   const handleToggleFollow = (username: string) => {
@@ -140,11 +159,12 @@ export default function ReelsPage() {
     );
   };
 
-  const handleAddComment = (reelId: string, text: string) => {
+  const handleAddComment = async (reelId: string, text: string) => {
+    // Optimistic UI Update
     const newCommentObj: Comment = {
       id: `new-comment-${Date.now()}`,
-      username: "current_user", // simulated logged in username
-      avatarUrl: "https://api.dicebear.com/7.x/adventurer/svg?seed=current_user",
+      username: "You", // simulated optimistic username
+      avatarUrl: "",
       text,
       timestamp: "1s",
       likesCount: 0,
@@ -167,6 +187,12 @@ export default function ReelsPage() {
         return reel;
       })
     );
+
+    try {
+      await addComment({ postId: Number(reelId), commentText: text }).unwrap();
+    } catch (error) {
+      console.error("Failed to add comment:", error);
+    }
   };
 
   // Automatically scroll to the next reel when active video finishes (Auto-scroll Mode)

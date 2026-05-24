@@ -1,4 +1,5 @@
 import { baseApi } from "./baseApi";
+import { decodeJWT } from "@/lib/utils";
 
 export interface Comment {
   postCommentId: number;
@@ -61,6 +62,8 @@ export interface StoryItem {
   createAt: string;
   userId: string | null;
   userAvatar: string | null;
+  liked?: boolean;
+  likedCount?: number;
   viewerDto?: {
     userName: string | null;
     name: string | null;
@@ -222,12 +225,22 @@ export const feedApi = baseApi.injectEndpoints({
       }),
       // Removed invalidatesTags to prevent full feed refetch on every like
     }),
-
-    addComment: builder.mutation<any, { postId: number; comment: string }>({
+    
+    addPostFavorite: builder.mutation<any, { postId: number }>({
       query: (body) => ({
-        url: "/Post/add-comment",
+        url: "/Post/add-post-favorite",
         method: "POST",
         body,
+      }),
+      // Avoid massive invalidation, maybe rely on optimistic update if possible
+    }),
+
+    addComment: builder.mutation<any, { postId: number; comment: string }>({
+      query: ({ postId, comment }) => ({
+        url: "/Post/add-comment",
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: { postId, comment },
       }),
       invalidatesTags: (result, error, { postId }) => [
         { type: "Post", id: postId },
@@ -379,9 +392,22 @@ export const feedApi = baseApi.injectEndpoints({
         const queryParams: Record<string, string | number> = {};
         queryParams.PageNumber = params?.pageNumber ?? 1;
         queryParams.PageSize = params?.pageSize ?? 10;
-        if (params?.userId) {
-          queryParams.UserId = params.userId;
+        
+        let uid = params?.userId;
+        if (!uid && typeof window !== "undefined") {
+          const token = localStorage.getItem("token");
+          if (token) {
+            const payload = decodeJWT(token);
+            if (payload) {
+              uid = payload.sid ?? payload.id ?? payload.userId ?? payload.sub;
+            }
+          }
         }
+
+        if (uid) {
+          queryParams.UserId = uid;
+        }
+        
         return {
           url: "/Post/get-following-post",
           params: queryParams,
@@ -515,6 +541,7 @@ export const {
   useAddCommentMutation,
   useDeleteCommentMutation,
   useDeletePostMutation,
+  useAddPostFavoriteMutation,
   useCreatePostMutation,
   useGetPostByIdQuery,
   useGetMyPostsQuery,
